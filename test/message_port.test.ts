@@ -1,4 +1,4 @@
-import { startCommonTests } from "./common.ts";
+import { startCommonTests } from "./common.test.ts";
 
 Deno.test("MessagePort", async (t) => {
   await startCommonTests({
