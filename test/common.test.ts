@@ -76,15 +76,27 @@ export async function startCommonTests(options: {
     cleanup?.();
   });
 
-  await t.step("getRemoteFnNames()", async () => {
-    const { rpc1, rpc2, cleanup } = rpcs();
+  await t.step("getRemoteFnNames()", async (t) => {
+    await t.step("namespace exists", async () => {
+      const { rpc1, rpc2, cleanup } = rpcs();
 
-    rpc1.defineLocalFn("add", fns.add);
-    rpc1.defineLocalFn("fib1", fns.fib);
-    rpc1.defineLocalFn("fib2", fns.fib);
-    assertEquals(await rpc2.getRemoteFnNames(), ["add", "fib1", "fib2"]);
+      rpc1.defineLocalFn("add", fns.add);
+      rpc1.defineLocalFn("fib1", fns.fib);
+      rpc1.defineLocalFn("fib2", fns.fib);
+      assertEquals(await rpc2.getRemoteFnNames(), ["add", "fib1", "fib2"]);
 
-    cleanup?.();
+      cleanup?.();
+    });
+
+    await t.step("namespace not exists", async () => {
+      const { port1, port2, cleanup } = ports();
+
+      new MRpc(port1);
+      const rpc2 = new MRpc(port2, { namespace: "custom" });
+      assertEquals(await rpc2.getRemoteFnNames(), undefined);
+
+      cleanup?.();
+    });
   });
 
   await t.step("dispose()", () => {
