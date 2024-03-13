@@ -165,7 +165,7 @@ export class MRpc {
         // get the local function
         const localFnInfo = this.#localFns.get(name);
         if (!localFnInfo) {
-          const errMsg = `The function "${name}" is not defined.`;
+          const errMsg = `The function name "${name}" is not defined.`;
           this.#sendReturnMsg(name, key, false, undefined, errMsg);
           return;
         }
@@ -204,9 +204,9 @@ export class MRpc {
           resolve(ret);
         } else {
           reject(
-            new Error(`The remote function "${name}" throws an exception.`, {
-              cause: err,
-            }),
+            new Error(
+              `The remote threw an error when calling function "${name}": ${err}`,
+            ),
           );
         }
 
