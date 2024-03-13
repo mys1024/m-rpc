@@ -22,29 +22,37 @@ interface RemoteCallInfo {
   reject: (err: any) => void;
 }
 
+interface MsgPortWithStates {
+  _mrpc?: {
+    mrpcs: Map<string, MRpc>; // namespace -> mrpc
+  };
+}
+
 /* -------------------------------------------------- constants -------------------------------------------------- */
 
-const DEFAULT_NAMESPACE = "$";
+const DEFAULT_NAMESPACE = "#default";
 
 /* -------------------------------------------------- mrpc -------------------------------------------------- */
 
 export class MRpc {
   #port: MRpcPort;
-  #namespace: string;
+  #stopListening?: () => void;
   #localFns = new Map<string, LocalFnInfo>(); // name -> localFnInfo
   #remoteCalls = new Map<number, RemoteCallInfo>(); // key -> remoteCallInfo
   #callAcc = 0; // call accumulator
+
+  readonly namespace: string;
 
   constructor(port: MRpcPort, options: MRpcOptions = {}) {
     // destructure the options
     const { namespace = DEFAULT_NAMESPACE } = options;
 
     // properties
-    this.#namespace = namespace;
+    this.namespace = namespace;
     this.#port = port;
 
     // init the port
-    this.#initPort(port);
+    this.#initPort(port, namespace);
   }
 
   /**
@@ -116,7 +124,30 @@ export class MRpc {
     return fns;
   }
 
-  #initPort(port: MRpcPort) {
+  /**
+   * Dispose the MRpc instance. The port won't be stopped.
+   */
+  dispose() {
+    const _port = this.#port as MsgPortWithStates;
+    this.#stopListening?.();
+    _port?._mrpc?.mrpcs?.delete(this.namespace);
+  }
+
+  #initPort(port: MRpcPort, namespace: string) {
+    const _port = port as MsgPortWithStates;
+    // ensure port states
+    if (!_port._mrpc) {
+      _port._mrpc = { mrpcs: new Map() };
+    }
+    // check namespace
+    const { mrpcs } = _port._mrpc;
+    if (mrpcs.has(namespace)) {
+      throw new Error(
+        `The namespace "${namespace}" has already been used by another MRpc instance on this port.`,
+      );
+    }
+    mrpcs.set(namespace, this);
+    // start listening
     port.start();
     this.#startListening(port);
   }
@@ -124,7 +155,7 @@ export class MRpc {
   #sendCallMsg(name: string, key: number, args: any[]) {
     const msg: MRpcMsgCall = {
       type: "call",
-      ns: this.#namespace,
+      ns: this.namespace,
       key,
       name,
       args,
@@ -141,7 +172,7 @@ export class MRpc {
   ) {
     const msg: MRpcMsgRet = {
       type: "ret",
-      ns: this.#namespace,
+      ns: this.namespace,
       name,
       key,
       ok,
@@ -152,13 +183,13 @@ export class MRpc {
   }
 
   #startListening(port: MRpcPort) {
-    port.addEventListener("message", async (event) => {
+    const listener = async (event: MessageEvent) => {
       if (isMRpcMsgCall(event.data)) {
         // destructure the call message
         const { ns, name, key, args } = event.data;
 
         // check the namespace
-        if (ns !== this.#namespace) {
+        if (ns !== this.namespace) {
           return;
         }
 
@@ -188,7 +219,7 @@ export class MRpc {
         const { ns, name, key, ok, ret, err } = event.data;
 
         // check the namespace
-        if (ns !== this.#namespace) {
+        if (ns !== this.namespace) {
           return;
         }
 
@@ -213,6 +244,9 @@ export class MRpc {
         // cleanup
         this.#remoteCalls.delete(key);
       }
-    });
+    };
+
+    port.addEventListener("message", listener);
+    this.#stopListening = () => port.removeEventListener("message", listener);
   }
 }

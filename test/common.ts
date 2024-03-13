@@ -65,49 +65,6 @@ export async function startCommonTests(options: {
     cleanup?.();
   });
 
-  await t.step("useRemoteFns()", async () => {
-    const { rpc1, rpc2, cleanup } = rpcs();
-
-    rpc1.defineLocalFn("add", fns.add);
-    const remoteFns = rpc2.useRemoteFns<Fns>();
-    assertEquals(await remoteFns.add(1, 2), 3);
-
-    cleanup?.();
-  });
-
-  await t.step("no conflicting name", () => {
-    const { rpc1, cleanup } = rpcs();
-
-    rpc1.defineLocalFn("add", fns.add);
-    try {
-      rpc1.defineLocalFn("add", fns.add);
-    } catch (err) {
-      assertIsError(
-        err,
-        undefined,
-        'The function name "add" has already been defined.',
-      );
-    }
-
-    cleanup?.();
-  });
-
-  await t.step("no undefined name", async () => {
-    const { rpc2, cleanup } = rpcs();
-
-    try {
-      await rpc2.callRemoteFn("add", [1, 2]);
-    } catch (err) {
-      assertIsError(
-        err,
-        undefined,
-        'The remote threw an error when calling function "add": The function name "add" is not defined.',
-      );
-    }
-
-    cleanup?.();
-  });
-
   await t.step("concurrency", async () => {
     const { rpc1, rpc2, cleanup } = rpcs();
 
@@ -127,5 +84,99 @@ export async function startCommonTests(options: {
     assertEquals(results, [3, 7, 11, 5, 55, 610]);
 
     cleanup?.();
+  });
+
+  await t.step("useRemoteFns()", async () => {
+    const { rpc1, rpc2, cleanup } = rpcs();
+
+    rpc1.defineLocalFn("add", fns.add);
+    const remoteFns = rpc2.useRemoteFns<Fns>();
+    assertEquals(await remoteFns.add(1, 2), 3);
+
+    cleanup?.();
+  });
+
+  await t.step("no undefined name", async () => {
+    const { rpc2, cleanup } = rpcs();
+
+    try {
+      await rpc2.callRemoteFn("add", [1, 2]);
+      throw new Error("Should not reach here.");
+    } catch (err) {
+      assertIsError(
+        err,
+        undefined,
+        'The remote threw an error when calling function "add": The function name "add" is not defined.',
+      );
+    }
+
+    cleanup?.();
+  });
+
+  await t.step("no conflicting name", () => {
+    const { rpc1, cleanup } = rpcs();
+
+    rpc1.defineLocalFn("add", fns.add);
+    try {
+      rpc1.defineLocalFn("add", fns.add);
+      throw new Error("Should not reach here.");
+    } catch (err) {
+      assertIsError(
+        err,
+        undefined,
+        'The function name "add" has already been defined.',
+      );
+    }
+
+    cleanup?.();
+  });
+
+  await t.step("no conflicting namespace", async (t) => {
+    await t.step("default namespace", () => {
+      const { port1, cleanup } = ports();
+
+      new MRpc(port1);
+      try {
+        new MRpc(port1);
+        throw new Error("Should not reach here.");
+      } catch (err) {
+        assertIsError(
+          err,
+          undefined,
+          'The namespace "#default" has already been used by another MRpc instance on this port.',
+        );
+      }
+
+      cleanup?.();
+    });
+
+    await t.step("custom namespace", () => {
+      const { port1, cleanup } = ports();
+
+      new MRpc(port1, { namespace: "custom" });
+      new MRpc(port1, { namespace: "custom2" });
+      try {
+        new MRpc(port1, { namespace: "custom2" });
+        throw new Error("Should not reach here.");
+      } catch (err) {
+        assertIsError(
+          err,
+          undefined,
+          'The namespace "custom2" has already been used by another MRpc instance on this port.',
+        );
+      }
+
+      cleanup?.();
+    });
+
+    await t.step("dispose()", () => {
+      const { port1, cleanup } = ports();
+
+      const mrpc11 = new MRpc(port1, { namespace: "custom" });
+      mrpc11.dispose();
+      new MRpc(port1, { namespace: "custom" });
+
+      cleanup?.();
+    });
   });
 }
