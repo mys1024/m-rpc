@@ -21,21 +21,73 @@ type Fns = typeof fns;
 
 export async function startCommonTests(options: {
   t: Deno.TestContext;
-  ports: () => { port1: MRpcPort; port2: MRpcPort; cleanup?: () => void };
+  ports: () => { port1: MRpcPort; port2: MRpcPort; dispose: () => void };
 }) {
   const { t, ports } = options;
 
   function rpcs() {
-    const { port1, port2, cleanup } = ports();
+    const { port1, port2, dispose } = ports();
+    const rpc1 = new MRpc(port1);
+    const rpc2 = new MRpc(port2);
     return {
-      rpc1: new MRpc(port1),
-      rpc2: new MRpc(port2),
-      cleanup,
+      rpc1,
+      rpc2,
+      dispose: () => {
+        rpc1.dispose();
+        rpc2.dispose();
+        dispose();
+      },
     };
   }
 
+  await t.step("constructor", async (t) => {
+    await t.step("new", () => {
+      const { port1, port2, dispose } = ports();
+
+      new MRpc(port1);
+      new MRpc(port2);
+
+      dispose();
+    });
+
+    await t.step("options.namespace", () => {
+      const { port1, port2, dispose } = ports();
+
+      const rpc1 = new MRpc(port1, { namespace: "custom" });
+      const rpc2 = new MRpc(port2, { namespace: "custom" });
+      assertEquals(rpc1.namespace, "custom");
+      assertEquals(rpc2.namespace, "custom");
+
+      dispose();
+    });
+
+    await t.step("options.onDisposed", () => {
+      const { port1, port2, dispose } = ports();
+
+      let disposed1 = false;
+      let disposed2 = false;
+      const rpc1 = new MRpc(port1, {
+        onDisposed: () => {
+          disposed1 = true;
+        },
+      });
+      const rpc2 = new MRpc(port2, {
+        onDisposed: () => {
+          disposed2 = true;
+        },
+      });
+
+      rpc1.dispose();
+      rpc2.dispose();
+      assertEquals(disposed1, true);
+      assertEquals(disposed2, true);
+
+      dispose();
+    });
+  });
+
   await t.step("defineLocalFn() & callRemoteFn()", async () => {
-    const { rpc1, rpc2, cleanup } = rpcs();
+    const { rpc1, rpc2, dispose } = rpcs();
 
     rpc1.defineLocalFn("add", fns.add);
     rpc1.defineLocalFn("fib", fns.fib);
@@ -43,74 +95,89 @@ export async function startCommonTests(options: {
     assertEquals(await rpc2.callRemoteFn("add", [1, 2]), 3);
     assertEquals(await rpc2.callRemoteFn("fib", [10]), 55);
 
-    cleanup?.();
+    dispose();
   });
 
   await t.step("defineLocalFns() & useRemoteFns()", async () => {
-    const { rpc1, rpc2, cleanup } = rpcs();
+    const { rpc1, rpc2, dispose } = rpcs();
 
     rpc1.defineLocalFns(fns);
     const { add: remoteAdd, fib: remoteFib } = rpc2.useRemoteFns<Fns>();
     assertEquals(await remoteAdd(1, 2), 3);
     assertEquals(await remoteFib(10), 55);
 
-    cleanup?.();
+    dispose();
   });
 
   await t.step("useRemoteFn()", async () => {
-    const { rpc1, rpc2, cleanup } = rpcs();
+    const { rpc1, rpc2, dispose } = rpcs();
 
     rpc1.defineLocalFn("add", fns.add);
     const remoteAdd = rpc2.useRemoteFn<Fns["add"]>("add");
     assertEquals(await remoteAdd(1, 2), 3);
 
-    cleanup?.();
+    dispose();
   });
 
   await t.step("getLocalFnNames()", () => {
-    const { rpc1, cleanup } = rpcs();
+    const { rpc1, dispose } = rpcs();
 
     rpc1.defineLocalFn("add", fns.add);
     assertEquals(rpc1.getLocalFnNames(), ["add"]);
 
-    cleanup?.();
+    dispose();
   });
 
   await t.step("getRemoteFnNames()", async (t) => {
     await t.step("namespace exists", async () => {
-      const { rpc1, rpc2, cleanup } = rpcs();
+      const { rpc1, rpc2, dispose } = rpcs();
 
       rpc1.defineLocalFn("add", fns.add);
       rpc1.defineLocalFn("fib1", fns.fib);
       rpc1.defineLocalFn("fib2", fns.fib);
       assertEquals(await rpc2.getRemoteFnNames(), ["add", "fib1", "fib2"]);
 
-      cleanup?.();
+      dispose();
     });
 
     await t.step("namespace not exists", async () => {
-      const { port1, port2, cleanup } = ports();
+      const { port1, port2, dispose } = ports();
 
       new MRpc(port1);
       const rpc2 = new MRpc(port2, { namespace: "custom" });
       assertEquals(await rpc2.getRemoteFnNames(), undefined);
 
-      cleanup?.();
+      dispose();
     });
   });
 
-  await t.step("dispose()", () => {
-    const { port1, cleanup } = ports();
+  await t.step("dispose()", async (t) => {
+    await t.step("disposed", () => {
+      const { port1, dispose } = ports();
 
-    const mrpc11 = new MRpc(port1, { namespace: "custom" });
-    mrpc11.dispose();
-    new MRpc(port1, { namespace: "custom" });
+      const rpc1 = new MRpc(port1, { namespace: "custom" });
+      assertEquals(rpc1.disposed, false);
+      rpc1.dispose();
+      assertEquals(rpc1.disposed, true);
+      rpc1.dispose();
+      assertEquals(rpc1.disposed, true);
 
-    cleanup?.();
+      dispose();
+    });
+
+    await t.step("dispose namespace", () => {
+      const { port1, dispose } = ports();
+
+      const rpc1 = new MRpc(port1, { namespace: "custom" });
+      rpc1.dispose();
+      new MRpc(port1, { namespace: "custom" });
+
+      dispose();
+    });
   });
 
   await t.step("concurrency", async () => {
-    const { rpc1, rpc2, cleanup } = rpcs();
+    const { rpc1, rpc2, dispose } = rpcs();
 
     rpc1.defineLocalFn("add", fns.add);
     rpc1.defineLocalFn("fib", fns.fib);
@@ -127,11 +194,11 @@ export async function startCommonTests(options: {
     const results = await Promise.all(promises);
     assertEquals(results, [3, 7, 11, 5, 55, 610]);
 
-    cleanup?.();
+    dispose();
   });
 
   await t.step("no undefined name", async () => {
-    const { rpc2, cleanup } = rpcs();
+    const { rpc2, dispose } = rpcs();
 
     try {
       await rpc2.callRemoteFn("add", [1, 2]);
@@ -144,11 +211,11 @@ export async function startCommonTests(options: {
       );
     }
 
-    cleanup?.();
+    dispose();
   });
 
   await t.step("no conflicting name", () => {
-    const { rpc1, cleanup } = rpcs();
+    const { rpc1, dispose } = rpcs();
 
     rpc1.defineLocalFn("add", fns.add);
     try {
@@ -162,12 +229,12 @@ export async function startCommonTests(options: {
       );
     }
 
-    cleanup?.();
+    dispose();
   });
 
   await t.step("no conflicting namespace", async (t) => {
     await t.step("default namespace", () => {
-      const { port1, cleanup } = ports();
+      const { port1, dispose } = ports();
 
       new MRpc(port1);
       try {
@@ -181,11 +248,11 @@ export async function startCommonTests(options: {
         );
       }
 
-      cleanup?.();
+      dispose();
     });
 
     await t.step("custom namespace", () => {
-      const { port1, cleanup } = ports();
+      const { port1, dispose } = ports();
 
       new MRpc(port1, { namespace: "custom" });
       new MRpc(port1, { namespace: "custom2" });
@@ -200,17 +267,7 @@ export async function startCommonTests(options: {
         );
       }
 
-      cleanup?.();
-    });
-
-    await t.step("dispose namespace", () => {
-      const { port1, cleanup } = ports();
-
-      const mrpc11 = new MRpc(port1, { namespace: "custom" });
-      mrpc11.dispose();
-      new MRpc(port1, { namespace: "custom" });
-
-      cleanup?.();
+      dispose();
     });
   });
 }

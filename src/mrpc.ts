@@ -47,18 +47,32 @@ export class MRpc {
   #localFns = new Map<string, LocalFnInfo>(); // name -> localFnInfo
   #remoteCalls = new Map<number, RemoteCallInfo>(); // key -> remoteCallInfo
   #callAcc = 0; // call accumulator
+  #onDisposedCallbacks = new Set<() => void>();
+  #namespace: string;
+  #disposed = false;
 
-  readonly namespace: string;
+  get namespace() {
+    return this.#namespace;
+  }
+
+  get disposed() {
+    return this.#disposed;
+  }
 
   /* -------------------------------------------------- constructor -------------------------------------------------- */
 
   constructor(port: MRpcPort, options: MRpcOptions = {}) {
     // destructure the options
-    const { namespace = NAMESPACE_DEFAULT } = options;
+    const { namespace = NAMESPACE_DEFAULT, onDisposed } = options;
 
-    // properties
-    this.namespace = namespace;
+    // init properties
+    this.#namespace = namespace;
     this.#port = port;
+
+    // add the onDisposed callback
+    if (onDisposed) {
+      this.#onDisposedCallbacks.add(onDisposed);
+    }
 
     // init the port
     this.#initPort(port, namespace);
@@ -150,7 +164,7 @@ export class MRpc {
   getRemoteFnNames(): Promise<string[] | undefined> {
     const internalMrpc = this.#ensureInternalMRpc();
     return internalMrpc.callRemoteFn<InternalFns["names"]>("names", [
-      this.namespace,
+      this.#namespace,
     ]);
   }
 
@@ -158,9 +172,20 @@ export class MRpc {
    * Dispose the MRpc instance. The port won't be stopped.
    */
   dispose() {
+    // check if already disposed
+    if (this.#disposed) {
+      return;
+    }
+    this.#disposed = true;
+    // stop listening
     this.#stopListening?.();
+    // delete the namespace and the MRpc instance from port states
     const { mrpcs } = MRpc.#ensurePortStates(this.#port);
-    mrpcs.delete(this.namespace);
+    mrpcs.delete(this.#namespace);
+    // call the onDisposed callbacks
+    for (const cb of this.#onDisposedCallbacks) {
+      cb();
+    }
   }
 
   /* -------------------------------------------------- private methods -------------------------------------------------- */
@@ -168,7 +193,7 @@ export class MRpc {
   #sendCallMsg(name: string, key: number, args: any[]) {
     const msg: MRpcMsgCall = {
       type: "call",
-      ns: this.namespace,
+      ns: this.#namespace,
       key,
       name,
       args,
@@ -185,7 +210,7 @@ export class MRpc {
   ) {
     const msg: MRpcMsgRet = {
       type: "ret",
-      ns: this.namespace,
+      ns: this.#namespace,
       name,
       key,
       ok,
@@ -235,7 +260,7 @@ export class MRpc {
         const { ns, name, key, args } = event.data;
 
         // check the namespace
-        if (ns !== this.namespace) {
+        if (ns !== this.#namespace) {
           return;
         }
 
@@ -265,7 +290,7 @@ export class MRpc {
         const { ns, name, key, ok, ret, err } = event.data;
 
         // check the namespace
-        if (ns !== this.namespace) {
+        if (ns !== this.#namespace) {
           return;
         }
 

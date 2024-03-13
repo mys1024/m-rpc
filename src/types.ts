@@ -43,4 +43,5 @@ export type MRpcMsgRet<FN extends AnyFn = AnyFn> =
 
 export interface MRpcOptions {
   namespace?: string;
+  onDisposed?: () => void;
 }

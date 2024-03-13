@@ -8,7 +8,7 @@ Deno.test("MessagePort", async (t) => {
       return {
         port1,
         port2,
-        cleanup: () => {
+        dispose: () => {
           port1.close();
           port2.close();
         },
