@@ -46,11 +46,13 @@ export async function startCommonTests(options: {
     cleanup?.();
   });
 
-  await t.step("getLocalFnNames()", () => {
-    const { rpc1, cleanup } = rpcs();
+  await t.step("defineLocalFns() & useRemoteFns()", async () => {
+    const { rpc1, rpc2, cleanup } = rpcs();
 
-    rpc1.defineLocalFn("add", fns.add);
-    assertEquals(rpc1.getLocalFnNames(), ["add"]);
+    rpc1.defineLocalFns(fns);
+    const { add: remoteAdd, fib: remoteFib } = rpc2.useRemoteFns<Fns>();
+    assertEquals(await remoteAdd(1, 2), 3);
+    assertEquals(await remoteFib(10), 55);
 
     cleanup?.();
   });
@@ -61,6 +63,36 @@ export async function startCommonTests(options: {
     rpc1.defineLocalFn("add", fns.add);
     const remoteAdd = rpc2.useRemoteFn<Fns["add"]>("add");
     assertEquals(await remoteAdd(1, 2), 3);
+
+    cleanup?.();
+  });
+
+  await t.step("getLocalFnNames()", () => {
+    const { rpc1, cleanup } = rpcs();
+
+    rpc1.defineLocalFn("add", fns.add);
+    assertEquals(rpc1.getLocalFnNames(), ["add"]);
+
+    cleanup?.();
+  });
+
+  await t.step("getRemoteFnNames()", async () => {
+    const { rpc1, rpc2, cleanup } = rpcs();
+
+    rpc1.defineLocalFn("add", fns.add);
+    rpc1.defineLocalFn("fib1", fns.fib);
+    rpc1.defineLocalFn("fib2", fns.fib);
+    assertEquals(await rpc2.getRemoteFnNames(), ["add", "fib1", "fib2"]);
+
+    cleanup?.();
+  });
+
+  await t.step("dispose()", () => {
+    const { port1, cleanup } = ports();
+
+    const mrpc11 = new MRpc(port1, { namespace: "custom" });
+    mrpc11.dispose();
+    new MRpc(port1, { namespace: "custom" });
 
     cleanup?.();
   });
@@ -82,16 +114,6 @@ export async function startCommonTests(options: {
     ];
     const results = await Promise.all(promises);
     assertEquals(results, [3, 7, 11, 5, 55, 610]);
-
-    cleanup?.();
-  });
-
-  await t.step("useRemoteFns()", async () => {
-    const { rpc1, rpc2, cleanup } = rpcs();
-
-    rpc1.defineLocalFn("add", fns.add);
-    const remoteFns = rpc2.useRemoteFns<Fns>();
-    assertEquals(await remoteFns.add(1, 2), 3);
 
     cleanup?.();
   });
@@ -169,7 +191,7 @@ export async function startCommonTests(options: {
       cleanup?.();
     });
 
-    await t.step("dispose()", () => {
+    await t.step("dispose namespace", () => {
       const { port1, cleanup } = ports();
 
       const mrpc11 = new MRpc(port1, { namespace: "custom" });

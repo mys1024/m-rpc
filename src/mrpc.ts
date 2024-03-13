@@ -28,13 +28,20 @@ interface MsgPortWithStates {
   };
 }
 
+type InternalFns = {
+  names: (namespace: string) => string[] | undefined;
+};
+
 /* -------------------------------------------------- constants -------------------------------------------------- */
 
-const DEFAULT_NAMESPACE = "#default";
+const NAMESPACE_DEFAULT = "#default";
+const NAMESPACE_INTERNAL = "#internal";
 
 /* -------------------------------------------------- mrpc -------------------------------------------------- */
 
 export class MRpc {
+  /* -------------------------------------------------- properties -------------------------------------------------- */
+
   #port: MRpcPort;
   #stopListening?: () => void;
   #localFns = new Map<string, LocalFnInfo>(); // name -> localFnInfo
@@ -43,9 +50,11 @@ export class MRpc {
 
   readonly namespace: string;
 
+  /* -------------------------------------------------- constructor -------------------------------------------------- */
+
   constructor(port: MRpcPort, options: MRpcOptions = {}) {
     // destructure the options
-    const { namespace = DEFAULT_NAMESPACE } = options;
+    const { namespace = NAMESPACE_DEFAULT } = options;
 
     // properties
     this.namespace = namespace;
@@ -54,6 +63,8 @@ export class MRpc {
     // init the port
     this.#initPort(port, namespace);
   }
+
+  /* -------------------------------------------------- public methods -------------------------------------------------- */
 
   /**
    * Define a local function.
@@ -69,10 +80,12 @@ export class MRpc {
   }
 
   /**
-   * Get the names of the local functions.
+   * Define local functions.
    */
-  getLocalFnNames(): string[] {
-    return Array.from(this.#localFns.keys());
+  defineLocalFns(fns: Record<string, AnyFn>): void {
+    for (const [name, fn] of Object.entries(fns)) {
+      this.defineLocalFn(name, fn);
+    }
   }
 
   /**
@@ -125,32 +138,32 @@ export class MRpc {
   }
 
   /**
+   * Get the names of the local functions.
+   */
+  getLocalFnNames(): string[] {
+    return Array.from(this.#localFns.keys());
+  }
+
+  /**
+   * Get the names of the remote functions.
+   */
+  getRemoteFnNames(): Promise<string[] | undefined> {
+    const internalMrpc = this.#ensureInternalMRpc();
+    return internalMrpc.callRemoteFn<InternalFns["names"]>("names", [
+      this.namespace,
+    ]);
+  }
+
+  /**
    * Dispose the MRpc instance. The port won't be stopped.
    */
   dispose() {
-    const _port = this.#port as MsgPortWithStates;
     this.#stopListening?.();
-    _port?._mrpc?.mrpcs?.delete(this.namespace);
+    const { mrpcs } = MRpc.#ensurePortStates(this.#port);
+    mrpcs.delete(this.namespace);
   }
 
-  #initPort(port: MRpcPort, namespace: string) {
-    const _port = port as MsgPortWithStates;
-    // ensure port states
-    if (!_port._mrpc) {
-      _port._mrpc = { mrpcs: new Map() };
-    }
-    // check namespace
-    const { mrpcs } = _port._mrpc;
-    if (mrpcs.has(namespace)) {
-      throw new Error(
-        `The namespace "${namespace}" has already been used by another MRpc instance on this port.`,
-      );
-    }
-    mrpcs.set(namespace, this);
-    // start listening
-    port.start();
-    this.#startListening(port);
-  }
+  /* -------------------------------------------------- private methods -------------------------------------------------- */
 
   #sendCallMsg(name: string, key: number, args: any[]) {
     const msg: MRpcMsgCall = {
@@ -180,6 +193,39 @@ export class MRpc {
       err: err as any,
     };
     this.#port.postMessage(msg);
+  }
+
+  #ensureInternalMRpc() {
+    return MRpc.ensureMRpc(this.#port, NAMESPACE_INTERNAL);
+  }
+
+  #initPort(port: MRpcPort, namespace: string) {
+    // ensure port states
+    const { mrpcs } = MRpc.#ensurePortStates(port);
+
+    // check namespace
+    if (mrpcs.has(namespace)) {
+      throw new Error(
+        `The namespace "${namespace}" has already been used by another MRpc instance on this port.`,
+      );
+    }
+    mrpcs.set(namespace, this);
+
+    // ensure internal MRpc
+    this.#ensureInternalMRpc();
+
+    // define internal functions
+    if (namespace === NAMESPACE_INTERNAL) {
+      const internalFns: InternalFns = {
+        names: (namespace: string) =>
+          MRpc.getMRpc(port, namespace)?.getLocalFnNames(),
+      };
+      this.defineLocalFns(internalFns);
+    }
+
+    // start listening
+    port.start();
+    this.#startListening(port);
   }
 
   #startListening(port: MRpcPort) {
@@ -248,5 +294,29 @@ export class MRpc {
 
     port.addEventListener("message", listener);
     this.#stopListening = () => port.removeEventListener("message", listener);
+  }
+
+  /* -------------------------------------------------- static methods -------------------------------------------------- */
+
+  static ensureMRpc(
+    port: MRpcPort,
+    namespace: string = NAMESPACE_DEFAULT,
+  ): MRpc {
+    return MRpc.getMRpc(port, namespace) || new MRpc(port, { namespace });
+  }
+
+  static getMRpc(
+    port: MRpcPort,
+    namespace: string = NAMESPACE_DEFAULT,
+  ): MRpc | undefined {
+    return MRpc.#ensurePortStates(port).mrpcs.get(namespace);
+  }
+
+  static #ensurePortStates(port: MRpcPort) {
+    const _port = port as MsgPortWithStates;
+    if (!_port._mrpc) {
+      _port._mrpc = { mrpcs: new Map() };
+    }
+    return _port._mrpc;
   }
 }
