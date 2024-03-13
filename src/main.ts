@@ -1,5 +1,3 @@
-export function add(a: number, b: number): number {
-  return a + b;
-}
+export type { MRpcOptions, MRpcPort } from "./types.ts";
 
-console.log(`1 + 2 = ${add(1, 2)}`);
+export { MRpc } from "./mrpc.ts";

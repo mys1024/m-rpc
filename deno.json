@@ -1,5 +1,5 @@
 {
-  "name": "",
+  "name": "@mys/m-rpc",
   "version": "0.1.0",
   "tasks": {
     "run": "deno run src/main.ts",
@@ -17,5 +17,12 @@
   },
   "exports": {
     ".": "./src/main.ts"
+  },
+  "lint": {
+    "rules": {
+      "exclude": [
+        "no-explicit-any"
+      ]
+    }
   }
 }
