@@ -134,6 +134,36 @@ export async function startCommonTests(options: {
     });
   });
 
+  await t.step("onDisposed()", async (t) => {
+    await t.step("disposed", async () => {
+      await usingPorts(({ port1 }) => {
+        let disposed1 = false;
+        let disposed2 = false;
+        const rpc1 = new MRpc(port1);
+        rpc1.onDisposed(() => {
+          disposed1 = true;
+        });
+        rpc1.dispose();
+        rpc1.onDisposed(() => {
+          disposed2 = true;
+        });
+        assertEquals(disposed1, true);
+        assertEquals(disposed2, true);
+      });
+    });
+
+    await t.step("not disposed", async () => {
+      await usingPorts(({ port1 }) => {
+        let disposed = false;
+        const rpc1 = new MRpc(port1);
+        rpc1.onDisposed(() => {
+          disposed = true;
+        });
+        assertEquals(disposed, false);
+      });
+    });
+  });
+
   await t.step("dispose()", async (t) => {
     await t.step("disposed", async () => {
       await usingPorts(({ port1 }) => {

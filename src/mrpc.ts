@@ -41,12 +41,11 @@ export class MRpc {
   /* -------------------------------------------------- properties -------------------------------------------------- */
 
   #port: MRpcPort;
-  #stopListening?: () => void;
+  #namespace: string;
   #localFns = new Map<string, LocalFnInfo>(); // name -> localFnInfo
   #remoteCalls = new Map<number, RemoteCallInfo>(); // key -> remoteCallInfo
-  #callAcc = 0; // call accumulator
   #onDisposedCallbacks = new Set<() => void>();
-  #namespace: string;
+  #callAcc = 0; // call accumulator
   #disposed = false;
 
   get namespace() {
@@ -63,17 +62,17 @@ export class MRpc {
     // destructure the options
     const { namespace = NAMESPACE_DEFAULT, onDisposed } = options;
 
-    // init properties
-    this.#namespace = namespace;
-    this.#port = port;
-
     // add the onDisposed callback
     if (onDisposed) {
-      this.#onDisposedCallbacks.add(onDisposed);
+      this.onDisposed(onDisposed);
     }
 
-    // init the port
-    this.#initPort(port, namespace);
+    // init properties
+    this.#port = port;
+    this.#namespace = namespace;
+
+    // init the instance
+    this.#init();
   }
 
   /* -------------------------------------------------- public methods -------------------------------------------------- */
@@ -167,6 +166,16 @@ export class MRpc {
   }
 
   /**
+   * Add an onDisposed callback.
+   */
+  onDisposed(cb: () => void) {
+    if (this.#disposed) {
+      cb();
+    }
+    this.#onDisposedCallbacks.add(cb);
+  }
+
+  /**
    * Dispose the MRpc instance. The port won't be stopped.
    */
   dispose() {
@@ -176,9 +185,6 @@ export class MRpc {
     }
     this.#disposed = true;
 
-    // stop listening
-    this.#stopListening?.();
-
     // delete the namespace from the port
     MRpc.#deletePortNamespace(this.#port, this.#namespace);
 
@@ -186,6 +192,9 @@ export class MRpc {
     for (const cb of this.#onDisposedCallbacks) {
       cb();
     }
+
+    // clear the onDisposed callbacks
+    this.#onDisposedCallbacks.clear();
   }
 
   /* -------------------------------------------------- private methods -------------------------------------------------- */
@@ -224,28 +233,28 @@ export class MRpc {
     return MRpc.ensureMRpc(this.#port, NAMESPACE_INTERNAL);
   }
 
-  #initPort(port: MRpcPort, namespace: string) {
+  #init() {
     // add the namespace to the port
-    MRpc.#addPortNamespace(port, namespace, this);
+    MRpc.#addPortNamespace(this.#port, this.#namespace, this);
 
     // ensure internal MRpc
     this.#ensureInternalMRpc();
 
-    // define internal functions
-    if (namespace === NAMESPACE_INTERNAL) {
+    // define internal functions if the namespace is internal
+    if (this.#namespace === NAMESPACE_INTERNAL) {
       const internalFns: InternalFns = {
         names: (namespace: string) =>
-          MRpc.getMRpc(port, namespace)?.getLocalFnNames(),
+          MRpc.getMRpc(this.#port, namespace)?.getLocalFnNames(),
       };
       this.defineLocalFns(internalFns);
     }
 
     // start listening
-    port.start();
-    this.#startListening(port);
+    this.#startListening();
   }
 
-  #startListening(port: MRpcPort) {
+  #startListening() {
+    // the listener
     const listener = async (event: MessageEvent) => {
       if (isMRpcMsgCall(event.data)) {
         // destructure the call message
@@ -309,8 +318,14 @@ export class MRpc {
       }
     };
 
-    port.addEventListener("message", listener);
-    this.#stopListening = () => port.removeEventListener("message", listener);
+    // start listening
+    this.#port.start();
+    this.#port.addEventListener("message", listener);
+
+    // cleanup on disposed
+    this.onDisposed(() => {
+      this.#port.removeEventListener("message", listener);
+    });
   }
 
   /* -------------------------------------------------- static -------------------------------------------------- */
