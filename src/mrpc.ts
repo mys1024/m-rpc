@@ -22,10 +22,8 @@ interface RemoteCallInfo {
   reject: (err: any) => void;
 }
 
-interface MsgPortWithStates {
-  _mrpc?: {
-    mrpcs: Map<string, MRpc>; // namespace -> mrpc
-  };
+interface PortStates {
+  namespaces: Map<string, MRpc>; // namespace -> mrpc
 }
 
 type InternalFns = {
@@ -177,11 +175,13 @@ export class MRpc {
       return;
     }
     this.#disposed = true;
+
     // stop listening
     this.#stopListening?.();
-    // delete the namespace and the MRpc instance from port states
-    const { mrpcs } = MRpc.#ensurePortStates(this.#port);
-    mrpcs.delete(this.#namespace);
+
+    // delete the namespace from the port
+    MRpc.#deletePortNamespace(this.#port, this.#namespace);
+
     // call the onDisposed callbacks
     for (const cb of this.#onDisposedCallbacks) {
       cb();
@@ -225,16 +225,8 @@ export class MRpc {
   }
 
   #initPort(port: MRpcPort, namespace: string) {
-    // ensure port states
-    const { mrpcs } = MRpc.#ensurePortStates(port);
-
-    // check namespace
-    if (mrpcs.has(namespace)) {
-      throw new Error(
-        `The namespace "${namespace}" has already been used by another MRpc instance on this port.`,
-      );
-    }
-    mrpcs.set(namespace, this);
+    // add the namespace to the port
+    MRpc.#addPortNamespace(port, namespace, this);
 
     // ensure internal MRpc
     this.#ensureInternalMRpc();
@@ -321,7 +313,9 @@ export class MRpc {
     this.#stopListening = () => port.removeEventListener("message", listener);
   }
 
-  /* -------------------------------------------------- static methods -------------------------------------------------- */
+  /* -------------------------------------------------- static -------------------------------------------------- */
+
+  static #ports = new WeakMap<MRpcPort, PortStates>();
 
   static ensureMRpc(
     port: MRpcPort,
@@ -334,14 +328,32 @@ export class MRpc {
     port: MRpcPort,
     namespace: string = NAMESPACE_DEFAULT,
   ): MRpc | undefined {
-    return MRpc.#ensurePortStates(port).mrpcs.get(namespace);
+    return MRpc.#ensurePortStates(port).namespaces.get(namespace);
   }
 
-  static #ensurePortStates(port: MRpcPort) {
-    const _port = port as MsgPortWithStates;
-    if (!_port._mrpc) {
-      _port._mrpc = { mrpcs: new Map() };
+  static #addPortNamespace(port: MRpcPort, namespace: string, mrpc: MRpc) {
+    const { namespaces } = MRpc.#ensurePortStates(port);
+    if (namespaces.has(namespace)) {
+      throw new Error(
+        `The namespace "${namespace}" has already been used by another MRpc instance on this port.`,
+      );
     }
-    return _port._mrpc;
+    namespaces.set(namespace, mrpc);
+  }
+
+  static #deletePortNamespace(port: MRpcPort, namespace: string) {
+    const { namespaces } = MRpc.#ensurePortStates(port);
+    namespaces.delete(namespace);
+  }
+
+  static #ensurePortStates(port: MRpcPort): PortStates {
+    let states = MRpc.#ports.get(port);
+    if (!states) {
+      states = {
+        namespaces: new Map(),
+      };
+      MRpc.#ports.set(port, states);
+    }
+    return states;
   }
 }
