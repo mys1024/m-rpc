@@ -2,14 +2,15 @@ import type {
   AnyFn,
   AwaitedRet,
   MRpcMsgCall,
+  MRpcMsgPort,
   MRpcMsgRet,
   MRpcOptions,
-  MRpcPort,
   RemoteFn,
   RemoteFns,
   RemoteRet,
 } from "./types.ts";
 import { isMRpcMsgCall, isMRpcMsgRet } from "./utils.ts";
+import { onMsg, sendMsg } from "./port.ts";
 
 /* -------------------------------------------------- types -------------------------------------------------- */
 
@@ -40,7 +41,7 @@ const NAMESPACE_INTERNAL = "#internal";
 export class MRpc {
   /* -------------------------------------------------- properties -------------------------------------------------- */
 
-  #port: MRpcPort;
+  #port: MRpcMsgPort;
   #namespace: string;
   #timeout: number;
   #localFns = new Map<string, LocalFnInfo>(); // name -> localFnInfo
@@ -59,7 +60,7 @@ export class MRpc {
 
   /* -------------------------------------------------- constructor -------------------------------------------------- */
 
-  constructor(port: MRpcPort, options: MRpcOptions = {}) {
+  constructor(port: MRpcMsgPort, options: MRpcOptions = {}) {
     // destructure the options
     const {
       namespace = NAMESPACE_DEFAULT,
@@ -234,7 +235,7 @@ export class MRpc {
       name,
       args,
     };
-    this.#port.postMessage(msg);
+    sendMsg(this.#port, msg);
   }
 
   #sendReturnMsg(
@@ -253,7 +254,7 @@ export class MRpc {
       ret,
       err: err as any,
     };
-    this.#port.postMessage(msg);
+    sendMsg(this.#port, msg);
   }
 
   #ensureInternalMRpc() {
@@ -282,10 +283,10 @@ export class MRpc {
 
   #startListening() {
     // the listener
-    const listener = async (event: MessageEvent) => {
-      if (isMRpcMsgCall(event.data)) {
+    const listener = async (msg: MRpcMsgCall | MRpcMsgRet) => {
+      if (isMRpcMsgCall(msg)) {
         // destructure the call message
-        const { ns, name, key, args } = event.data;
+        const { ns, name, key, args } = msg;
 
         // check the namespace
         if (ns !== this.#namespace) {
@@ -313,9 +314,9 @@ export class MRpc {
             : String(err);
           this.#sendReturnMsg(name, key, false, undefined, errMsg);
         }
-      } else if (isMRpcMsgRet(event.data)) {
+      } else if (isMRpcMsgRet(msg)) {
         // destructure the return message
-        const { ns, name, key, ok, ret, err } = event.data;
+        const { ns, name, key, ok, ret, err } = msg;
 
         // check the namespace
         if (ns !== this.#namespace) {
@@ -342,38 +343,39 @@ export class MRpc {
 
         // cleanup
         this.#remoteCalls.delete(key);
+      } else {
+        throw new Error(`Invalid message type.`, { cause: msg });
       }
     };
 
     // start listening
-    this.#port.start();
-    this.#port.addEventListener("message", listener);
+    const { stop } = onMsg(this.#port, listener);
 
-    // cleanup on disposed
+    // stop listening when disposed
     this.onDisposed(() => {
-      this.#port.removeEventListener("message", listener);
+      stop();
     });
   }
 
   /* -------------------------------------------------- static -------------------------------------------------- */
 
-  static #ports = new WeakMap<MRpcPort, PortStates>();
+  static #ports = new WeakMap<MRpcMsgPort, PortStates>();
 
   static ensureMRpc(
-    port: MRpcPort,
+    port: MRpcMsgPort,
     namespace: string = NAMESPACE_DEFAULT,
   ): MRpc {
     return MRpc.getMRpc(port, namespace) || new MRpc(port, { namespace });
   }
 
   static getMRpc(
-    port: MRpcPort,
+    port: MRpcMsgPort,
     namespace: string = NAMESPACE_DEFAULT,
   ): MRpc | undefined {
     return MRpc.#ensurePortStates(port).namespaces.get(namespace);
   }
 
-  static #addPortNamespace(port: MRpcPort, namespace: string, mrpc: MRpc) {
+  static #addPortNamespace(port: MRpcMsgPort, namespace: string, mrpc: MRpc) {
     const { namespaces } = MRpc.#ensurePortStates(port);
     if (namespaces.has(namespace)) {
       throw new Error(
@@ -383,12 +385,12 @@ export class MRpc {
     namespaces.set(namespace, mrpc);
   }
 
-  static #deletePortNamespace(port: MRpcPort, namespace: string) {
+  static #deletePortNamespace(port: MRpcMsgPort, namespace: string) {
     const { namespaces } = MRpc.#ensurePortStates(port);
     namespaces.delete(namespace);
   }
 
-  static #ensurePortStates(port: MRpcPort): PortStates {
+  static #ensurePortStates(port: MRpcMsgPort): PortStates {
     let states = MRpc.#ports.get(port);
     if (!states) {
       states = {

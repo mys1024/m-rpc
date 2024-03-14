@@ -1,3 +1,3 @@
-export type { MRpcOptions, MRpcPort } from "./types.ts";
+export type { MRpcMsgPort, MRpcOptions } from "./types.ts";
 
 export { MRpc } from "./mrpc.ts";

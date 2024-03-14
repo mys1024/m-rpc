@@ -16,7 +16,32 @@ export type RemoteFns<FNS extends Record<string, AnyFn>> = {
 
 /* -------------------------------------------------- MRpc -------------------------------------------------- */
 
-export type MRpcPort = MessagePort;
+export type MsgPortNormalized =
+  & (
+    | {
+      transferEnabled?: false;
+      postMessage: (message: any) => void;
+    }
+    | {
+      transferEnabled: true;
+      postMessage: (
+        message: any,
+        options?: { transfer?: Transferable[] },
+      ) => void;
+    }
+  )
+  & {
+    addEventListener: (
+      type: "message",
+      listener: (event: MessageEvent) => void,
+    ) => void;
+    removeEventListener: (
+      type: "message",
+      listener: (event: MessageEvent) => void,
+    ) => void;
+  };
+
+export type MRpcMsgPort = MessagePort | WebSocket | MsgPortNormalized;
 
 interface MRpcMsgBase {
   ns: string;
@@ -37,7 +62,7 @@ export type MRpcMsgRet<FN extends AnyFn = AnyFn> =
     type: "ret";
   }
   & (
-    | { ok: true; ret: Awaited<ReturnType<FN>>; err?: undefined }
+    | { ok: true; ret: AwaitedRet<FN>; err?: undefined }
     | { ok: false; ret?: undefined; err: string }
   );
 

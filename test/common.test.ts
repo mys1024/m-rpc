@@ -1,5 +1,5 @@
 import { assertEquals, assertIsError } from "@std/assert";
-import { MRpc, type MRpcPort } from "../src/main.ts";
+import { MRpc, type MRpcMsgPort } from "../src/main.ts";
 
 /* -------------------------------------------------- local functions -------------------------------------------------- */
 
@@ -22,7 +22,9 @@ type Fns = typeof fns;
 export async function startCommonTests(options: {
   t: Deno.TestContext;
   usingPorts: (
-    fn: (options: { port1: MRpcPort; port2: MRpcPort }) => Promise<void> | void,
+    fn: (
+      options: { port1: MRpcMsgPort; port2: MRpcMsgPort },
+    ) => Promise<void> | void,
   ) => Promise<void>;
 }) {
   const { t, usingPorts } = options;
