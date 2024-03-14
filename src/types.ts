@@ -42,6 +42,20 @@ export type MRpcMsgRet<FN extends AnyFn = AnyFn> =
   );
 
 export interface MRpcOptions {
+  /**
+   * The namespace of the MRpc instance.
+   * @default "default"
+   */
   namespace?: string;
+
+  /**
+   * The timeout for remote function calls in milliseconds.
+   * @default 5000
+   */
+  timeout?: number;
+
+  /**
+   * The callback to be called when the MRpc instance is disposed.
+   */
   onDisposed?: () => void;
 }

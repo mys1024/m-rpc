@@ -44,8 +44,8 @@ export async function startCommonTests(options: {
       await usingPorts(({ port1, port2 }) => {
         const rpc1 = new MRpc(port1);
         const rpc2 = new MRpc(port2);
-        assertEquals(rpc1.namespace, "#default");
-        assertEquals(rpc2.namespace, "#default");
+        assertEquals(rpc1.namespace, "default");
+        assertEquals(rpc2.namespace, "default");
       });
     });
 
@@ -78,6 +78,23 @@ export async function startCommonTests(options: {
         rpc2.dispose();
         assertEquals(disposed1, true);
         assertEquals(disposed2, true);
+      });
+    });
+
+    await t.step("options.timeout", async () => {
+      await usingPorts(async ({ port2 }) => {
+        const rpc2 = new MRpc(port2, {
+          timeout: 100,
+        });
+        try {
+          await rpc2.callRemoteFn<Fns["add"]>("add", [1, 2]);
+        } catch (err) {
+          assertIsError(
+            err,
+            undefined,
+            'The call of the remote function "add" timed out.',
+          );
+        }
       });
     });
   });
@@ -246,7 +263,7 @@ export async function startCommonTests(options: {
           assertIsError(
             err,
             undefined,
-            'The namespace "#default" has already been used by another MRpc instance on this port.',
+            'The namespace "default" has already been used by another MRpc instance on this port.',
           );
         }
       });

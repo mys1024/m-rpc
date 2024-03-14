@@ -27,12 +27,12 @@ interface PortStates {
 }
 
 type InternalFns = {
-  names: (namespace: string) => string[] | undefined;
+  $names: (namespace: string) => string[] | undefined;
 };
 
 /* -------------------------------------------------- constants -------------------------------------------------- */
 
-const NAMESPACE_DEFAULT = "#default";
+const NAMESPACE_DEFAULT = "default";
 const NAMESPACE_INTERNAL = "#internal";
 
 /* -------------------------------------------------- mrpc -------------------------------------------------- */
@@ -42,6 +42,7 @@ export class MRpc {
 
   #port: MRpcPort;
   #namespace: string;
+  #timeout: number;
   #localFns = new Map<string, LocalFnInfo>(); // name -> localFnInfo
   #remoteCalls = new Map<number, RemoteCallInfo>(); // key -> remoteCallInfo
   #onDisposedCallbacks = new Set<() => void>();
@@ -60,16 +61,19 @@ export class MRpc {
 
   constructor(port: MRpcPort, options: MRpcOptions = {}) {
     // destructure the options
-    const { namespace = NAMESPACE_DEFAULT, onDisposed } = options;
-
-    // add the onDisposed callback
-    if (onDisposed) {
-      this.onDisposed(onDisposed);
-    }
+    const {
+      namespace = NAMESPACE_DEFAULT,
+      timeout = 5000,
+      onDisposed,
+    } = options;
 
     // init properties
     this.#port = port;
     this.#namespace = namespace;
+    this.#timeout = timeout;
+    if (onDisposed) {
+      this.onDisposed(onDisposed);
+    }
 
     // init the instance
     this.#init();
@@ -106,10 +110,33 @@ export class MRpc {
     name: string,
     args: Parameters<FN>,
   ): RemoteRet<FN> {
-    // save the info of the call
+    // generate a key for the call
     const key = ++this.#callAcc;
+
+    // the return value of the remote function
     const ret = new Promise<AwaitedRet<FN>>((resolve, reject) => {
-      this.#remoteCalls.set(key, { resolve, reject });
+      // set a timeout
+      const timeoutId = setTimeout(() => {
+        if (!this.#remoteCalls.has(key)) {
+          return;
+        }
+        this.#remoteCalls.delete(key);
+        reject(
+          new Error(`The call of the remote function "${name}" timed out.`),
+        );
+      }, this.#timeout);
+
+      // save the info of the call
+      this.#remoteCalls.set(key, {
+        resolve: (ret) => {
+          clearTimeout(timeoutId);
+          resolve(ret);
+        },
+        reject: (err) => {
+          clearTimeout(timeoutId);
+          reject(err);
+        },
+      });
     });
 
     // send a call message
@@ -160,7 +187,7 @@ export class MRpc {
    */
   getRemoteFnNames(): Promise<string[] | undefined> {
     const internalMrpc = this.#ensureInternalMRpc();
-    return internalMrpc.callRemoteFn<InternalFns["names"]>("names", [
+    return internalMrpc.callRemoteFn<InternalFns["$names"]>("$names", [
       this.#namespace,
     ]);
   }
@@ -243,7 +270,7 @@ export class MRpc {
     // define internal functions if the namespace is internal
     if (this.#namespace === NAMESPACE_INTERNAL) {
       const internalFns: InternalFns = {
-        names: (namespace: string) =>
+        $names: (namespace: string) =>
           MRpc.getMRpc(this.#port, namespace)?.getLocalFnNames(),
       };
       this.defineLocalFns(internalFns);
