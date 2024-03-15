@@ -28,7 +28,6 @@ Deno.test("MsgPortNormalized", async (t) => {
           port1._listeners.delete(listener);
         },
       };
-
       port2 = {
         _listeners: new Set(),
         postMessage: (message: any) => {
