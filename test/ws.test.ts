@@ -6,7 +6,7 @@ Deno.test("WebSocket", async (t) => {
 
   const server = Deno.serve({ port: serverPort }, (req) => {
     const { response, socket } = Deno.upgradeWebSocket(req);
-    socket.onopen = () => onServerWsOpen?.(socket);
+    onServerWsOpen?.(socket);
     return response;
   });
 
@@ -15,7 +15,9 @@ Deno.test("WebSocket", async (t) => {
   ) {
     const _ws1 = new Promise<WebSocket>((resolve) => {
       onServerWsOpen = (ws) => {
-        resolve(ws);
+        ws.onopen = () => {
+          resolve(ws);
+        };
       };
     });
     const _ws2 = new Promise<WebSocket>((resolve) => {
