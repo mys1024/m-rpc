@@ -2,10 +2,10 @@
   "name": "@mys/m-rpc",
   "version": "0.9.0",
   "tasks": {
-    "run": "deno run src/main.ts",
-    "run:watch": "deno run --watch src/main.ts",
-    "cache": "deno cache --lock-write src/main.ts test/*.test.ts",
-    "cache:reload": "deno cache --reload src/main.ts test/*.test.ts",
+    "run": "deno run src/mod.ts",
+    "run:watch": "deno run --watch src/mod.ts",
+    "cache": "deno cache --lock-write src/mod.ts test/*.test.ts",
+    "cache:reload": "deno cache --reload src/mod.ts test/*.test.ts",
     "test": "deno test -A",
     "test:watch": "deno test -A --watch",
     "test:cov": "deno test -A --coverage && deno coverage && deno coverage --html",
@@ -16,7 +16,7 @@
     "@std/assert": "jsr:@std/assert@0.216"
   },
   "exports": {
-    ".": "./src/main.ts"
+    ".": "./src/mod.ts"
   },
   "lint": {
     "rules": {

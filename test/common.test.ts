@@ -1,5 +1,5 @@
 import { assertEquals, assertIsError } from "@std/assert";
-import { MRpc, type MRpcMsgPort } from "../src/main.ts";
+import { MRpc, type MRpcMsgPort } from "../src/mod.ts";
 
 /* -------------------------------------------------- local functions -------------------------------------------------- */
 
