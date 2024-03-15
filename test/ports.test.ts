@@ -15,6 +15,12 @@ Deno.test("MessagePort", async (t) => {
   });
 });
 
+Deno.test("Worker", { only: true }, async (t) => {
+  const worker = new Worker(new URL("./worker.test.ts", import.meta.url), {
+    type: "module",
+  });
+});
+
 Deno.test("WebSocket", async (t) => {
   const serverPort = 35999;
   let onServerWsOpen: ((ws: WebSocket) => void) | undefined;

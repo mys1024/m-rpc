@@ -41,7 +41,7 @@ export type MsgPortNormalized =
     ) => void;
   };
 
-export type MRpcMsgPort = MessagePort | WebSocket | MsgPortNormalized;
+export type MRpcMsgPort = MessagePort | Worker | WebSocket | MsgPortNormalized;
 
 interface MRpcMsgBase {
   ns: string;

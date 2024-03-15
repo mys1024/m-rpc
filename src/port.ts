@@ -9,6 +9,10 @@ function isMessagePort(port: MRpcMsgPort): port is MessagePort {
   return "MessagePort" in globalThis && port instanceof MessagePort;
 }
 
+function isWorker(port: MRpcMsgPort): port is Worker {
+  return "Worker" in globalThis && port instanceof Worker;
+}
+
 function isWebSocket(port: MRpcMsgPort): port is WebSocket {
   return "WebSocket" in globalThis && port instanceof WebSocket;
 }
@@ -21,6 +25,8 @@ function isMsgPortNormalized(port: MRpcMsgPort): port is MsgPortNormalized {
 
 export function sendMsg(port: MRpcMsgPort, message: any): void {
   if (isMessagePort(port)) {
+    port.postMessage(message);
+  } else if (isWorker(port)) {
     port.postMessage(message);
   } else if (isWebSocket(port)) {
     port.send(JSON.stringify(message));
@@ -39,22 +45,28 @@ export function onMsg(
 } {
   if (isMessagePort(port)) {
     port.start();
-    const _listener = (event: MessageEvent) => listener(event.data);
-    port.addEventListener("message", _listener);
+    const l = (event: MessageEvent) => listener(event.data);
+    port.addEventListener("message", l);
     return {
-      stop: () => port.removeEventListener("message", _listener),
+      stop: () => port.removeEventListener("message", l),
+    };
+  } else if (isWorker(port)) {
+    const l = (event: MessageEvent) => listener(event.data);
+    port.addEventListener("message", l);
+    return {
+      stop: () => port.removeEventListener("message", l),
     };
   } else if (isWebSocket(port)) {
-    const _listener = (event: MessageEvent) => listener(JSON.parse(event.data));
-    port.addEventListener("message", _listener);
+    const l = (event: MessageEvent) => listener(JSON.parse(event.data));
+    port.addEventListener("message", l);
     return {
-      stop: () => port.removeEventListener("message", _listener),
+      stop: () => port.removeEventListener("message", l),
     };
   } else if (isMsgPortNormalized(port)) {
-    const _listener = (event: MessageEvent) => listener(JSON.parse(event.data));
-    port.addEventListener("message", _listener);
+    const l = (event: MessageEvent) => listener(JSON.parse(event.data));
+    port.addEventListener("message", l);
     return {
-      stop: () => port.removeEventListener("message", _listener),
+      stop: () => port.removeEventListener("message", l),
     };
   } else {
     throw new Error("Invalid port type.", { cause: port });
