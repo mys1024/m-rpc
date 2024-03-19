@@ -1,0 +1,39 @@
+{
+  "name": "m-rpc",
+  "version": "0.0.0",
+  "description": "A Deno stater template 🦕",
+  "type": "module",
+  "author": "mys1024",
+  "packageManager": "pnpm@8.15.5",
+  "license": "MIT",
+  "homepage": "https://github.com/mys1024/m-rpc#readme",
+  "repository": "https://github.com/mys1024/m-rpc.git",
+  "keywords": [
+    "deno",
+    "rpc",
+    "message"
+  ],
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "prepare": "node scripts/prepare.js",
+    "clean": "node scripts/clean.js",
+    "build": "pnpm run prepare && tsup src/main.ts --format cjs,esm --dts",
+    "build:clean": "pnpm run build && pnpm run clean"
+  },
+  "main": "./dist/main.js",
+  "module": "./dist/main.js",
+  "types": "./dist/main.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/main.js",
+      "require": "./dist/main.cjs",
+      "types": "./dist/main.d.ts"
+    }
+  },
+  "dependencies": {
+    "tsup": "^8.0.2",
+    "typescript": "^5.4.2"
+  }
+}
