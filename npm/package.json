@@ -1,5 +1,5 @@
 {
-  "name": "m-rpc",
+  "name": "@mysnpm/m-rpc",
   "version": "0.0.0",
   "description": "A Deno stater template 🦕",
   "type": "module",

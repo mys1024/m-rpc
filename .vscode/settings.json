@@ -28,6 +28,7 @@
     "lcov",
     "minzip",
     "mrpc",
+    "mysnpm",
     "tsup"
   ]
 }
