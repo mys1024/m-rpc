@@ -3,7 +3,6 @@
   "packages": {
     "specifiers": {
       "jsr:@std/assert@0.220": "jsr:@std/assert@0.220.1",
-      "jsr:@std/fmt@^0.220": "jsr:@std/fmt@0.220.1",
       "jsr:@std/fmt@^0.220.1": "jsr:@std/fmt@0.220.1"
     },
     "jsr": {
