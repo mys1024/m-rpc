@@ -28,7 +28,10 @@
     ]
   },
   "lint": {
-    "exclude": ["npm"]
+    "exclude": ["npm"],
+    "rules": {
+      "exclude": ["no-explicit-any"]
+    }
   },
   "fmt": {
     "exclude": ["npm"]

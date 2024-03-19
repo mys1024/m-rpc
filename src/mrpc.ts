@@ -50,11 +50,11 @@ export class MRpc {
   #callAcc = 0; // call accumulator
   #disposed = false;
 
-  get namespace() {
+  get namespace(): string {
     return this.#namespace;
   }
 
-  get disposed() {
+  get disposed(): boolean {
     return this.#disposed;
   }
 
