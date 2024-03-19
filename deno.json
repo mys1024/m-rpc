@@ -1,6 +1,6 @@
 {
   "name": "@mys/m-rpc",
-  "version": "0.9.1",
+  "version": "0.9.2",
   "tasks": {
     "run": "deno run src/main.ts",
     "run:watch": "deno run --watch src/main.ts",
