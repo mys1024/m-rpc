@@ -1,6 +1,6 @@
 {
   "name": "@mys/m-rpc",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "tasks": {
     "run": "deno run src/main.ts",
     "run:watch": "deno run --watch src/main.ts",
@@ -28,12 +28,18 @@
     ]
   },
   "lint": {
-    "exclude": ["npm"],
+    "exclude": [
+      "npm"
+    ],
     "rules": {
-      "exclude": ["no-explicit-any"]
+      "exclude": [
+        "no-explicit-any"
+      ]
     }
   },
   "fmt": {
-    "exclude": ["npm"]
+    "exclude": [
+      "npm"
+    ]
   }
 }
