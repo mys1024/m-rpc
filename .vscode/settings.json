@@ -30,6 +30,7 @@
     "mrpc",
     "mysnpm",
     "rpcs",
-    "tsup"
+    "tsup",
+    "typeof"
   ]
 }

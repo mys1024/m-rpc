@@ -18,7 +18,23 @@ _A message based rpc library._
 
 ## Usage
 
-TBD.
+### basic
+
+```typescript
+import { MRpc } from "@mysnpm/m-rpc";
+
+function add(a: number, b: number) {
+  return a + b;
+}
+
+// The port can be a MessagePort, a WebSocket, or an object containing methods for sending and receiving messages.
+const { port1, port2 } = new MessageChannel();
+const rpc1 = new MRpc(port1);
+const rpc2 = new MRpc(port2);
+
+rpc1.defineLocalFn("add", add);
+await rpc2.callRemoteFn<typeof add>("add", [1, 2]); // 3
+```
 
 ## License
 
