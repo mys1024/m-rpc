@@ -1,7 +1,7 @@
 {
   "name": "@mysnpm/m-rpc",
   "version": "0.0.0",
-  "description": "A message based rpc library.",
+  "description": "A message based RPC library.",
   "type": "module",
   "author": "mys1024",
   "packageManager": "pnpm@8.15.5",

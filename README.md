@@ -12,7 +12,7 @@
 [![workflow-ci](https://img.shields.io/github/actions/workflow/status/mys1024/m-rpc/ci.yml?label=ci&style=flat-square)](https://github.com/mys1024/m-rpc/actions/workflows/ci.yml)
 [![workflow-release](https://img.shields.io/github/actions/workflow/status/mys1024/m-rpc/release.yml?label=release&style=flat-square)](https://github.com/mys1024/m-rpc/actions/workflows/release.yml)
 
-_A message based rpc library._
+_A message based RPC library._
 
 </div>
 
