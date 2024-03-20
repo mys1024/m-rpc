@@ -10,8 +10,12 @@
   "repository": "https://github.com/mys1024/m-rpc.git",
   "keywords": [
     "deno",
-    "rpc",
-    "message"
+    "message",
+    "RPC",
+    "WebSocket",
+    "MessagePort",
+    "function",
+    "call"
   ],
   "files": [
     "dist"

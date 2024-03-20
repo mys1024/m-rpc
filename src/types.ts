@@ -16,6 +16,29 @@ export type RemoteFns<FNS extends Record<string, AnyFn>> = {
 
 /* -------------------------------------------------- MRpc -------------------------------------------------- */
 
+interface MRpcMsgBase {
+  ns: string;
+  name: string;
+  key: number;
+}
+
+export type MRpcMsgCall<FN extends AnyFn = AnyFn> =
+  & MRpcMsgBase
+  & {
+    type: "call";
+    args: Parameters<FN>;
+  };
+
+export type MRpcMsgRet<FN extends AnyFn = AnyFn> =
+  & MRpcMsgBase
+  & {
+    type: "ret";
+  }
+  & (
+    | { ok: true; ret: AwaitedRet<FN>; err?: undefined }
+    | { ok: false; ret?: undefined; err: string }
+  );
+
 export type MsgPortNormalized =
   & (
     | {
@@ -41,31 +64,14 @@ export type MsgPortNormalized =
     ) => void;
   };
 
+/**
+ * The message port for MRpc.
+ */
 export type MRpcMsgPort = MessagePort | WebSocket | MsgPortNormalized;
 
-interface MRpcMsgBase {
-  ns: string;
-  name: string;
-  key: number;
-}
-
-export type MRpcMsgCall<FN extends AnyFn = AnyFn> =
-  & MRpcMsgBase
-  & {
-    type: "call";
-    args: Parameters<FN>;
-  };
-
-export type MRpcMsgRet<FN extends AnyFn = AnyFn> =
-  & MRpcMsgBase
-  & {
-    type: "ret";
-  }
-  & (
-    | { ok: true; ret: AwaitedRet<FN>; err?: undefined }
-    | { ok: false; ret?: undefined; err: string }
-  );
-
+/**
+ * The options for MRpc constructor.
+ */
 export interface MRpcOptions {
   /**
    * The namespace of the MRpc instance.
@@ -91,6 +97,9 @@ export interface MRpcOptions {
   onDisposed?: () => void;
 }
 
+/**
+ * The options for remote function calls.
+ */
 export interface MRpcCallOptions {
   /**
    * The timeout for remote function calls in milliseconds.
