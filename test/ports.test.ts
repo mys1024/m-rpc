@@ -6,9 +6,7 @@ Deno.test("MessagePort", async (t) => {
     t,
     usingPorts: async (fn) => {
       const { port1, port2 } = new MessageChannel();
-
       await fn({ port1, port2 });
-
       port1.close();
       port2.close();
     },

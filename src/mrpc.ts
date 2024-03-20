@@ -129,9 +129,7 @@ export class MRpc {
     const ret = new Promise<AwaitedRet<FN>>((resolve, reject) => {
       // set a timeout
       const timeoutId = setTimeout(() => {
-        if (!this.#remoteCalls.has(key)) {
-          return;
-        }
+        // cleanup
         this.#remoteCalls.delete(key);
         // retry
         if (retry > 0) {
@@ -359,7 +357,7 @@ export class MRpc {
         } else {
           reject(
             new Error(
-              `The remote threw an error when calling function "${name}": ${err}`,
+              `The remote threw an error when calling the function "${name}": ${err}`,
             ),
           );
         }

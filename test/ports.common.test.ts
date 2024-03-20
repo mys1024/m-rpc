@@ -42,6 +42,9 @@ const fns = {
     }
     return fns.fib(n - 1) + fns.fib(n - 2);
   },
+  throwErr() {
+    throw new Error("This is an expected error.");
+  },
 };
 
 type Fns = typeof fns;
@@ -80,6 +83,14 @@ export async function startCommonTests(options: {
       });
     });
 
+    await t.step("invalid port", () => {
+      try {
+        new MRpc({} as MRpcMsgPort);
+      } catch (err) {
+        assertIsError(err, undefined, "Invalid port type.");
+      }
+    });
+
     await t.step("options.namespace", async () => {
       await usingPorts(({ port1, port2 }) => {
         const rpc1 = new MRpc(port1, { namespace: "custom" });
@@ -113,22 +124,29 @@ export async function startCommonTests(options: {
     });
   });
 
-  await t.step("defineLocalFn() & callRemoteFn()", async () => {
-    await usingRpcs(async ({ rpc1, rpc2 }) => {
-      rpc1.defineLocalFn("add", fns.add);
-      rpc1.defineLocalFn("fib", fns.fib);
-      assertEquals(await rpc2.callRemoteFn("add", [1, 2]), 3);
-      assertEquals(await rpc2.callRemoteFn("fib", [10]), 55);
-    });
-  });
-
-  await t.step("defineLocalFns() & useRemoteFns()", async (t) => {
+  await t.step("defineLocalFn() & callRemoteFn()", async (t) => {
     await t.step("basic", async () => {
       await usingRpcs(async ({ rpc1, rpc2 }) => {
-        rpc1.defineLocalFns(fns);
-        const { add: remoteAdd, fib: remoteFib } = rpc2.useRemoteFns<Fns>();
-        assertEquals(await remoteAdd(1, 2), 3);
-        assertEquals(await remoteFib(10), 55);
+        rpc1.defineLocalFn("add", fns.add);
+        rpc1.defineLocalFn("fib", fns.fib);
+        assertEquals(await rpc2.callRemoteFn("add", [1, 2]), 3);
+        assertEquals(await rpc2.callRemoteFn("fib", [10]), 55);
+      });
+    });
+
+    await t.step("error passthrough", async () => {
+      await usingRpcs(async ({ rpc1, rpc2 }) => {
+        rpc1.defineLocalFn("throwErr", fns.throwErr);
+        const throwErr = rpc2.useRemoteFn<Fns["throwErr"]>("throwErr");
+        try {
+          await throwErr();
+        } catch (err) {
+          assertIsError(
+            err,
+            undefined,
+            'The remote threw an error when calling the function "throwErr": This is an expected error.',
+          );
+        }
       });
     });
 
@@ -154,6 +172,31 @@ export async function startCommonTests(options: {
           200,
           250,
         );
+      });
+    });
+  });
+
+  await t.step("defineLocalFns() & useRemoteFns()", async (t) => {
+    await t.step("basic", async () => {
+      await usingRpcs(async ({ rpc1, rpc2 }) => {
+        rpc1.defineLocalFns(fns);
+        const remoteFns = rpc2.useRemoteFns<Fns>();
+        const { add: remoteAdd, fib: remoteFib } = remoteFns;
+        assertEquals(await remoteFns.add(10, 100), 110);
+        assertEquals(await remoteAdd(1, 2), 3);
+        assertEquals(await remoteFib(10), 55);
+      });
+    });
+
+    await t.step("invalid key type", async () => {
+      await usingRpcs(({ rpc1, rpc2 }) => {
+        rpc1.defineLocalFns(fns);
+        const remoteFns = rpc2.useRemoteFns<Fns>();
+        try {
+          remoteFns[Symbol("add") as any as "add"];
+        } catch (err) {
+          assertIsError(err, undefined, "The name is not a string.");
+        }
       });
     });
   });
@@ -271,7 +314,7 @@ export async function startCommonTests(options: {
         assertIsError(
           err,
           undefined,
-          'The remote threw an error when calling function "add": The function name "add" is not defined.',
+          'The remote threw an error when calling the function "add": The function name "add" is not defined.',
         );
       }
     });
