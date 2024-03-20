@@ -75,12 +75,30 @@ export interface MRpcOptions {
 
   /**
    * The timeout for remote function calls in milliseconds.
-   * @default 5000
+   * @default 3000
    */
   timeout?: number;
+
+  /**
+   * The number of retries for timed out remote function calls.
+   * @default 0
+   */
+  retry?: number;
 
   /**
    * The callback to be called when the MRpc instance is disposed.
    */
   onDisposed?: () => void;
+}
+
+export interface MRpcCallOptions {
+  /**
+   * The timeout for remote function calls in milliseconds.
+   */
+  timeout?: number;
+
+  /**
+   * The number of retries for timed out remote function calls.
+   */
+  retry?: number;
 }

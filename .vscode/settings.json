@@ -29,6 +29,7 @@
     "minzip",
     "mrpc",
     "mysnpm",
+    "rpcs",
     "tsup"
   ]
 }

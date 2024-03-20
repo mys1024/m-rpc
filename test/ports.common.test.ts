@@ -1,5 +1,34 @@
+import { AssertionError } from "@std/assert/assertion_error";
 import { assertEquals, assertIsError } from "@std/assert";
 import { MRpc, type MRpcMsgPort } from "../src/main.ts";
+
+/* -------------------------------------------------- utils -------------------------------------------------- */
+
+async function assertPromiseDuration(
+  p: Promise<any>,
+  min: number,
+  max: number,
+) {
+  const timeoutId = setTimeout(() => {
+    throw new AssertionError(
+      "The promise is taking too long to resolve or reject.",
+    );
+  }, max + 100);
+  const start = performance.now();
+  try {
+    await p;
+  } catch {
+    // ignore
+  }
+  clearTimeout(timeoutId);
+  const end = performance.now();
+  const duration = end - start;
+  if (duration < min || duration > max) {
+    throw new AssertionError(
+      `The duration (${duration}ms) of the promise is not within the expected range: [${min}, ${max}].`,
+    );
+  }
+}
 
 /* -------------------------------------------------- local functions -------------------------------------------------- */
 
@@ -82,23 +111,6 @@ export async function startCommonTests(options: {
         assertEquals(disposed2, true);
       });
     });
-
-    await t.step("options.timeout", async () => {
-      await usingPorts(async ({ port2 }) => {
-        const rpc2 = new MRpc(port2, {
-          timeout: 100,
-        });
-        try {
-          await rpc2.callRemoteFn<Fns["add"]>("add", [1, 2]);
-        } catch (err) {
-          assertIsError(
-            err,
-            undefined,
-            'The call of the remote function "add" timed out.',
-          );
-        }
-      });
-    });
   });
 
   await t.step("defineLocalFn() & callRemoteFn()", async () => {
@@ -110,12 +122,39 @@ export async function startCommonTests(options: {
     });
   });
 
-  await t.step("defineLocalFns() & useRemoteFns()", async () => {
-    await usingRpcs(async ({ rpc1, rpc2 }) => {
-      rpc1.defineLocalFns(fns);
-      const { add: remoteAdd, fib: remoteFib } = rpc2.useRemoteFns<Fns>();
-      assertEquals(await remoteAdd(1, 2), 3);
-      assertEquals(await remoteFib(10), 55);
+  await t.step("defineLocalFns() & useRemoteFns()", async (t) => {
+    await t.step("basic", async () => {
+      await usingRpcs(async ({ rpc1, rpc2 }) => {
+        rpc1.defineLocalFns(fns);
+        const { add: remoteAdd, fib: remoteFib } = rpc2.useRemoteFns<Fns>();
+        assertEquals(await remoteAdd(1, 2), 3);
+        assertEquals(await remoteFib(10), 55);
+      });
+    });
+
+    await t.step("timeout", async () => {
+      await usingPorts(async ({ port2 }) => {
+        const rpc2 = new MRpc(port2);
+        await assertPromiseDuration(
+          rpc2.callRemoteFn<Fns["add"]>("add", [1, 2], { timeout: 50 }),
+          50,
+          100,
+        );
+      });
+    });
+
+    await t.step("retry", async () => {
+      await usingPorts(async ({ port2 }) => {
+        const rpc2 = new MRpc(port2);
+        await assertPromiseDuration(
+          rpc2.callRemoteFn<Fns["add"]>("add", [1, 2], {
+            timeout: 50,
+            retry: 3,
+          }),
+          200,
+          250,
+        );
+      });
     });
   });
 

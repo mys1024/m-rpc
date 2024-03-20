@@ -1,6 +1,7 @@
 import type {
   AnyFn,
   AwaitedRet,
+  MRpcCallOptions,
   MRpcMsgCall,
   MRpcMsgPort,
   MRpcMsgRet,
@@ -44,6 +45,7 @@ export class MRpc {
   #port: MRpcMsgPort;
   #namespace: string;
   #timeout: number;
+  #retry: number;
   #localFns = new Map<string, LocalFnInfo>(); // name -> localFnInfo
   #remoteCalls = new Map<number, RemoteCallInfo>(); // key -> remoteCallInfo
   #onDisposedCallbacks = new Set<() => void>();
@@ -61,10 +63,11 @@ export class MRpc {
   /* -------------------------------------------------- constructor -------------------------------------------------- */
 
   constructor(port: MRpcMsgPort, options: MRpcOptions = {}) {
-    // destructure the options
+    // options
     const {
       namespace = NAMESPACE_DEFAULT,
-      timeout = 5000,
+      timeout = 3000,
+      retry = 0,
       onDisposed,
     } = options;
 
@@ -72,6 +75,7 @@ export class MRpc {
     this.#port = port;
     this.#namespace = namespace;
     this.#timeout = timeout;
+    this.#retry = retry;
     if (onDisposed) {
       this.onDisposed(onDisposed);
     }
@@ -110,7 +114,14 @@ export class MRpc {
   callRemoteFn<FN extends AnyFn>(
     name: string,
     args: Parameters<FN>,
+    options: MRpcCallOptions = {},
   ): RemoteRet<FN> {
+    // options
+    const {
+      timeout = this.#timeout,
+      retry = this.#retry,
+    } = options;
+
     // generate a key for the call
     const key = ++this.#callAcc;
 
@@ -122,11 +133,18 @@ export class MRpc {
           return;
         }
         this.#remoteCalls.delete(key);
-        reject(
-          new Error(`The call of the remote function "${name}" timed out.`),
-        );
-      }, this.#timeout);
-
+        // retry
+        if (retry > 0) {
+          this.callRemoteFn(name, args, {
+            ...options,
+            retry: retry - 1,
+          }).then(resolve, reject);
+        } else {
+          reject(
+            new Error(`The call of the remote function "${name}" timed out.`),
+          );
+        }
+      }, timeout);
       // save the info of the call
       this.#remoteCalls.set(key, {
         resolve: (ret) => {
@@ -152,14 +170,19 @@ export class MRpc {
    */
   useRemoteFn<FN extends AnyFn>(
     name: string,
+    options?: MRpcCallOptions,
   ): RemoteFn<FN> {
-    return (...args: Parameters<FN>) => this.callRemoteFn(name, args);
+    return (...args: Parameters<FN>) => this.callRemoteFn(name, args, options);
   }
 
   /**
    * Use remote functions.
    */
-  useRemoteFns<FNS extends Record<string, AnyFn>>(): RemoteFns<FNS> {
+  useRemoteFns<FNS extends Record<string, AnyFn>>(
+    options?: {
+      [K in keyof FNS]?: MRpcCallOptions;
+    },
+  ): RemoteFns<FNS> {
     const fns = new Proxy({} as RemoteFns<FNS>, {
       get: (target, name) => {
         if (typeof name !== "string") {
@@ -168,7 +191,7 @@ export class MRpc {
         if (target[name]) {
           return target[name];
         }
-        const fn = this.useRemoteFn(name);
+        const fn = this.useRemoteFn(name, options?.[name]);
         (target as any)[name] = fn;
         return fn;
       },
