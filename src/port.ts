@@ -3,29 +3,22 @@ import {
   MRpcMsgPort,
   MRpcMsgRet,
   MsgPortNormalized,
+  MsgPortNormalizedPostMessageOptions,
 } from "./types.ts";
 
-function isMessagePort(port: MRpcMsgPort): port is MessagePort {
-  return "MessagePort" in globalThis && port instanceof MessagePort;
-}
+/* -------------------------------------------------- exports -------------------------------------------------- */
 
-function isWebSocket(port: MRpcMsgPort): port is WebSocket {
-  return "WebSocket" in globalThis && port instanceof WebSocket;
-}
-
-function isMsgPortNormalized(port: MRpcMsgPort): port is MsgPortNormalized {
-  return "postMessage" in port &&
-    "addEventListener" in port &&
-    "removeEventListener" in port;
-}
-
-export function sendMsg(port: MRpcMsgPort, message: any): void {
+export function sendMsg(
+  port: MRpcMsgPort,
+  message: any,
+  options?: MsgPortNormalizedPostMessageOptions,
+): void {
   if (isMessagePort(port)) {
     port.postMessage(message);
   } else if (isWebSocket(port)) {
     port.send(JSON.stringify(message));
   } else if (isMsgPortNormalized(port)) {
-    port.postMessage(JSON.stringify(message));
+    port.postMessage(JSON.stringify(message), options);
   } else {
     throw new Error("Invalid port type.", { cause: port });
   }
@@ -59,4 +52,20 @@ export function onMsg(
   } else {
     throw new Error("Invalid port type.", { cause: port });
   }
+}
+
+/* -------------------------------------------------- utils -------------------------------------------------- */
+
+function isMessagePort(port: MRpcMsgPort): port is MessagePort {
+  return "MessagePort" in globalThis && port instanceof MessagePort;
+}
+
+function isWebSocket(port: MRpcMsgPort): port is WebSocket {
+  return "WebSocket" in globalThis && port instanceof WebSocket;
+}
+
+function isMsgPortNormalized(port: MRpcMsgPort): port is MsgPortNormalized {
+  return "postMessage" in port &&
+    "addEventListener" in port &&
+    "removeEventListener" in port;
 }

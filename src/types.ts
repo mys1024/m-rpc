@@ -39,30 +39,33 @@ export type MRpcMsgRet<FN extends AnyFn = AnyFn> =
     | { ok: false; ret?: undefined; err: string }
   );
 
-export type MsgPortNormalized =
-  & (
-    | {
-      transferEnabled?: false;
-      postMessage: (message: any) => void;
-    }
-    | {
-      transferEnabled: true;
-      postMessage: (
-        message: any,
-        options?: { transfer?: Transferable[] },
-      ) => void;
-    }
-  )
-  & {
-    addEventListener: (
-      type: "message",
-      listener: (event: MessageEvent) => void,
-    ) => void;
-    removeEventListener: (
-      type: "message",
-      listener: (event: MessageEvent) => void,
-    ) => void;
-  };
+export interface MsgPortNormalizedPostMessageOptions {
+  /**
+   * @see https://developer.mozilla.org/en-US/docs/Web/API/Window/postMessage#targetOrigin
+   */
+  targetOrigin?: string;
+
+  /**
+   * TODO.
+   * @see https://developer.mozilla.org/en-US/docs/Web/API/Worker/postMessage#transfer
+   */
+  transfer?: Transferable[];
+}
+
+export type MsgPortNormalized = {
+  postMessage: (
+    message: any,
+    options?: MsgPortNormalizedPostMessageOptions,
+  ) => void;
+  addEventListener: (
+    type: "message",
+    listener: (event: MessageEvent) => void,
+  ) => void;
+  removeEventListener: (
+    type: "message",
+    listener: (event: MessageEvent) => void,
+  ) => void;
+};
 
 /**
  * The message port for MRpc.
@@ -95,6 +98,12 @@ export interface MRpcOptions {
    * The callback to be called when the MRpc instance is disposed.
    */
   onDisposed?: () => void;
+
+  /**
+   * Only available for {@link MsgPortNormalized.postMessage()}.
+   * @see https://developer.mozilla.org/en-US/docs/Web/API/Window/postMessage#targetOrigin
+   */
+  targetOrigin?: string;
 }
 
 /**
