@@ -1,5 +1,5 @@
 {
-  "name": "@mysnpm/m-rpc",
+  "name": "@mys-x/m-rpc",
   "version": "0.0.0",
   "description": "A message based RPC library.",
   "type": "module",
