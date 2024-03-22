@@ -37,11 +37,8 @@ jobs:
         with:
           deno-version: ${{ matrix.deno-version }}
 
-      - name: Fmt check
-        run: deno fmt --check
-
       - name: Lint
-        run: deno lint
+        run: deno task lint
 
       - name: Test
         run: deno task test:lcov
@@ -82,8 +79,8 @@ jobs:
     name: Publish to JSR (${{ inputs.is-release && 'real' || 'dry-run' }})
     runs-on: ubuntu-latest
     permissions:
-      id-token: write
       contents: read
+      id-token: write
 
     steps:
       - name: Checkout repository
@@ -101,6 +98,7 @@ jobs:
     name: Publish to npm (${{ inputs.is-release && 'real' || 'dry-run' }})
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       id-token: write
 
     steps:
