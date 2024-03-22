@@ -1,34 +1,6 @@
-import { AssertionError } from "@std/assert/assertion_error";
 import { assertEquals, assertIsError } from "@std/assert";
+import { assertDurationMeets } from "@mys/utils/assert";
 import { MRpc, type MRpcMsgPort } from "../src/main.ts";
-
-/* -------------------------------------------------- utils -------------------------------------------------- */
-
-async function assertPromiseDuration(
-  p: Promise<any>,
-  min: number,
-  max: number,
-) {
-  const timeoutId = setTimeout(() => {
-    throw new AssertionError(
-      "The promise is taking too long to resolve or reject.",
-    );
-  }, max + 100);
-  const start = performance.now();
-  try {
-    await p;
-  } catch {
-    // ignore
-  }
-  clearTimeout(timeoutId);
-  const end = performance.now();
-  const duration = end - start;
-  if (duration < min || duration > max) {
-    throw new AssertionError(
-      `The duration (${duration}ms) of the promise is not within the expected range: [${min}, ${max}].`,
-    );
-  }
-}
 
 /* -------------------------------------------------- local functions -------------------------------------------------- */
 
@@ -153,10 +125,9 @@ export async function startCommonTests(options: {
     await t.step("timeout", async () => {
       await usingPorts(async ({ port2 }) => {
         const rpc2 = new MRpc(port2);
-        await assertPromiseDuration(
+        await assertDurationMeets(
           rpc2.callRemoteFn<Fns["add"]>("add", [1, 2], { timeout: 50 }),
-          50,
-          100,
+          { min: 50, max: 100 },
         );
       });
     });
@@ -164,13 +135,12 @@ export async function startCommonTests(options: {
     await t.step("retry", async () => {
       await usingPorts(async ({ port2 }) => {
         const rpc2 = new MRpc(port2);
-        await assertPromiseDuration(
+        await assertDurationMeets(
           rpc2.callRemoteFn<Fns["add"]>("add", [1, 2], {
             timeout: 50,
             retry: 3,
           }),
-          200,
-          250,
+          { min: 200, max: 250 },
         );
       });
     });

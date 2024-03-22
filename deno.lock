@@ -2,10 +2,14 @@
   "version": "3",
   "packages": {
     "specifiers": {
+      "jsr:@mys/utils@0.1.5": "jsr:@mys/utils@0.1.5",
       "jsr:@std/assert@0.220": "jsr:@std/assert@0.220.1",
       "jsr:@std/fmt@^0.220.1": "jsr:@std/fmt@0.220.1"
     },
     "jsr": {
+      "@mys/utils@0.1.5": {
+        "integrity": "832c49d5dc8784de4074a6c8b06c3bc51ed3dccff35486ee99e8ee1353f9dadb"
+      },
       "@std/assert@0.220.1": {
         "integrity": "88710d54f3afdd7a5761e7805abba1f56cd14e4b212feffeb3e73a9f77482425",
         "dependencies": [
@@ -20,6 +24,7 @@
   "remote": {},
   "workspace": {
     "dependencies": [
+      "jsr:@mys/utils@0.1.5",
       "jsr:@std/assert@0.220"
     ]
   }

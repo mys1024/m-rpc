@@ -13,7 +13,8 @@
     "bump": "deno task check && deno task test && deno publish --dry-run && echo && echo ✅ Checks passed, start bumping... && echo && deno run -A jsr:@mys/bump@1"
   },
   "imports": {
-    "@std/assert": "jsr:@std/assert@0.220"
+    "@std/assert": "jsr:@std/assert@0.220",
+    "@mys/utils": "jsr:@mys/utils@0.1.5"
   },
   "exports": {
     ".": "./src/main.ts"
