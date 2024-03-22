@@ -21,8 +21,7 @@ _A message based RPC library._
 ### basic
 
 ```typescript
-// import { MRpc } from "jsr:@mys/m-rpc"; // JSR
-import { MRpc } from "@mys-x/m-rpc"; // npm
+import { MRpc } from "@mys-x/m-rpc"; // or "jsr:@mys/m-rpc"
 
 function add(a: number, b: number) {
   return a + b;
