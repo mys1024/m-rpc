@@ -57,6 +57,34 @@ Deno.test("WebSocket", async (t) => {
   server.shutdown();
 });
 
+Deno.test("Worker", async (t) => {
+  await startCommonTests({
+    t,
+    usingPorts: async (fn) => {
+      const worker = new Worker(
+        new URL("./ports.worker.ts", import.meta.url),
+        { type: "module" },
+      );
+
+      const workerGlobalProxy = await new Promise<MessagePort>((resolve) => {
+        const initListener = (event: MessageEvent) => {
+          const { workerGlobalProxy } = event.data;
+          if (workerGlobalProxy instanceof MessagePort) {
+            resolve(workerGlobalProxy);
+            worker.removeEventListener("message", initListener);
+          }
+        };
+        worker.addEventListener("message", initListener);
+      });
+
+      await fn({ port1: worker, port2: workerGlobalProxy });
+
+      workerGlobalProxy.close();
+      worker.terminate();
+    },
+  });
+});
+
 Deno.test("MsgPortNormalized", async (t) => {
   await startCommonTests({
     t,

@@ -4,6 +4,7 @@ import {
   MRpcMsgRet,
   MsgPortNormalized,
   MsgPortNormalizedPostMessageOptions,
+  WorkerGlobalScope,
 } from "./types.ts";
 
 /* -------------------------------------------------- exports -------------------------------------------------- */
@@ -13,7 +14,7 @@ export function sendMsg(
   message: any,
   options?: MsgPortNormalizedPostMessageOptions,
 ): void {
-  if (isMessagePort(port)) {
+  if (isMessagePort(port) || isWorker(port) || isWorkerGlobalScope(port)) {
     port.postMessage(message);
   } else if (isWebSocket(port)) {
     port.send(JSON.stringify(message));
@@ -30,25 +31,18 @@ export function onMsg(
 ): {
   stop: () => void;
 } {
-  if (isMessagePort(port)) {
-    port.start();
-    const _listener = (event: MessageEvent) => listener(event.data);
+  if (isMessagePort(port) || isWorker(port) || isWorkerGlobalScope(port)) {
+    if (isMessagePort(port)) {
+      port.start();
+    }
+    const _listener = (event: Event) => listener((event as MessageEvent).data);
     port.addEventListener("message", _listener);
-    return {
-      stop: () => port.removeEventListener("message", _listener),
-    };
-  } else if (isWebSocket(port)) {
-    const _listener = (event: MessageEvent) => listener(JSON.parse(event.data));
+    return { stop: () => port.removeEventListener("message", _listener) };
+  } else if (isWebSocket(port) || isMsgPortNormalized(port)) {
+    const _listener = (event: Event) =>
+      listener(JSON.parse((event as MessageEvent).data));
     port.addEventListener("message", _listener);
-    return {
-      stop: () => port.removeEventListener("message", _listener),
-    };
-  } else if (isMsgPortNormalized(port)) {
-    const _listener = (event: MessageEvent) => listener(JSON.parse(event.data));
-    port.addEventListener("message", _listener);
-    return {
-      stop: () => port.removeEventListener("message", _listener),
-    };
+    return { stop: () => port.removeEventListener("message", _listener) };
   } else {
     throw new Error("Invalid port type.", { cause: port });
   }
@@ -62,6 +56,17 @@ function isMessagePort(port: MRpcMsgPort): port is MessagePort {
 
 function isWebSocket(port: MRpcMsgPort): port is WebSocket {
   return "WebSocket" in globalThis && port instanceof WebSocket;
+}
+
+function isWorker(port: MRpcMsgPort): port is Worker {
+  return "Worker" in globalThis && port instanceof Worker;
+}
+
+function isWorkerGlobalScope(port: MRpcMsgPort): port is WorkerGlobalScope {
+  return port as any === globalThis &&
+    "postMessage" in port &&
+    "addEventListener" in port &&
+    "removeEventListener" in port;
 }
 
 function isMsgPortNormalized(port: MRpcMsgPort): port is MsgPortNormalized {

@@ -39,6 +39,15 @@ export type MRpcMsgRet<FN extends AnyFn = AnyFn> =
     | { ok: false; ret?: undefined; err: string }
   );
 
+/**
+ * @see https://developer.mozilla.org/en-US/docs/Web/API/WorkerGlobalScope
+ */
+export interface WorkerGlobalScope {
+  postMessage: Worker["postMessage"];
+  addEventListener: Worker["addEventListener"];
+  removeEventListener: Worker["removeEventListener"];
+}
+
 export interface MsgPortNormalizedPostMessageOptions {
   /**
    * @see https://developer.mozilla.org/en-US/docs/Web/API/Window/postMessage#targetOrigin
@@ -70,7 +79,12 @@ export type MsgPortNormalized = {
 /**
  * The message port for MRpc.
  */
-export type MRpcMsgPort = MessagePort | WebSocket | MsgPortNormalized;
+export type MRpcMsgPort =
+  | MessagePort
+  | WebSocket
+  | Worker
+  | WorkerGlobalScope
+  | MsgPortNormalized;
 
 /**
  * The options for MRpc constructor.
