@@ -11,12 +11,14 @@ export function sendMsg(
   port: MRpcMsgPort,
   message: any,
 ): void {
-  if (isMessagePort(port) || isWorker(port) || isWorkerGlobalScope(port)) {
+  if (isMessagePort(port) || isWorker(port)) {
     port.postMessage(message);
   } else if (isWebSocket(port)) {
     port.send(JSON.stringify(message));
   } else if (isMRpcMsgPortCommon(port)) {
     port.postMessage(port.serializer(message));
+  } else if (isWorkerGlobalScope(port)) {
+    port.postMessage(message);
   } else {
     throw new Error("Invalid port type.", { cause: port });
   }
@@ -28,7 +30,7 @@ export function onMsg(
 ): {
   stop: () => void;
 } {
-  if (isMessagePort(port) || isWorker(port) || isWorkerGlobalScope(port)) {
+  if (isMessagePort(port) || isWorker(port)) {
     const _listener = (event: Event) => listener((event as MessageEvent).data);
     port.addEventListener("message", _listener);
     return { stop: () => port.removeEventListener("message", _listener) };
@@ -39,6 +41,10 @@ export function onMsg(
   } else if (isMRpcMsgPortCommon(port)) {
     const _listener = (event: MessageEvent) =>
       listener(port.deserializer(event.data));
+    port.addEventListener("message", _listener);
+    return { stop: () => port.removeEventListener("message", _listener) };
+  } else if (isWorkerGlobalScope(port)) {
+    const _listener = (event: Event) => listener((event as MessageEvent).data);
     port.addEventListener("message", _listener);
     return { stop: () => port.removeEventListener("message", _listener) };
   } else {
