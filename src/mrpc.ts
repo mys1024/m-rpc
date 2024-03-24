@@ -47,8 +47,8 @@ export class MRpc {
 
   #port: MRpcMsgPort;
   #namespace: string;
-  #timeout: number;
-  #retry: number;
+  #callOptions: MRpcCallOptions;
+
   #localFns = new Map<string, LocalFnInfo>(); // name -> localFnInfo
   #remoteCalls = new Map<number, RemoteCallInfo>(); // key -> remoteCallInfo
   #onDisposedCallbacks = new Set<() => void>();
@@ -69,15 +69,13 @@ export class MRpc {
     // options
     const {
       namespace = NAMESPACE_DEFAULT,
-      timeout = 3000,
-      retry = 0,
+      callOptions = {},
     } = options;
 
     // init properties
     this.#port = port;
     this.#namespace = namespace;
-    this.#timeout = timeout;
-    this.#retry = retry;
+    this.#callOptions = callOptions;
 
     // init the instance
     this.#init();
@@ -117,8 +115,8 @@ export class MRpc {
   ): RemoteRet<FN> {
     // options
     const {
-      timeout = this.#timeout,
-      retry = this.#retry,
+      timeout = this.#callOptions.timeout || 3000,
+      retry = this.#callOptions.retry || 0,
     } = options;
 
     // generate a key for the call

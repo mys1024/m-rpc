@@ -63,15 +63,9 @@ export type MRpcMsgPort =
 /* -------------------------------------------------- MRpc -------------------------------------------------- */
 
 /**
- * The options for MRpc constructor.
+ * The options for remote function calls.
  */
-export interface MRpcOptions {
-  /**
-   * The namespace of the MRpc instance.
-   * @default "default"
-   */
-  namespace?: string;
-
+export interface MRpcCallOptions {
   /**
    * The timeout for remote function calls in milliseconds.
    * @default 3000
@@ -86,16 +80,17 @@ export interface MRpcOptions {
 }
 
 /**
- * The options for remote function calls.
+ * The options for MRpc constructor.
  */
-export interface MRpcCallOptions {
+export interface MRpcOptions {
   /**
-   * The timeout for remote function calls in milliseconds.
+   * The namespace of the MRpc instance.
+   * @default "default"
    */
-  timeout?: number;
+  namespace?: string;
 
   /**
-   * The number of retries for timed out remote function calls.
+   * The options for remote function calls, which's priority is lower than the options passed to `callRemoteFn`.
    */
-  retry?: number;
+  callOptions?: MRpcCallOptions;
 }
