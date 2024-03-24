@@ -71,7 +71,6 @@ export class MRpc {
       namespace = NAMESPACE_DEFAULT,
       timeout = 3000,
       retry = 0,
-      onDisposed,
     } = options;
 
     // init properties
@@ -79,9 +78,6 @@ export class MRpc {
     this.#namespace = namespace;
     this.#timeout = timeout;
     this.#retry = retry;
-    if (onDisposed) {
-      this.onDisposed(onDisposed);
-    }
 
     // init the instance
     this.#init();

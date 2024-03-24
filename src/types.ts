@@ -83,11 +83,6 @@ export interface MRpcOptions {
    * @default 0
    */
   retry?: number;
-
-  /**
-   * The callback to be called when the MRpc instance is disposed.
-   */
-  onDisposed?: () => void;
 }
 
 /**

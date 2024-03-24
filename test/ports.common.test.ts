@@ -71,29 +71,6 @@ export async function startCommonTests(options: {
         assertEquals(rpc2.namespace, "custom");
       });
     });
-
-    await t.step("options.onDisposed", async () => {
-      await usingPorts(({ port1, port2 }) => {
-        let disposed1 = false;
-        let disposed2 = false;
-
-        const rpc1 = new MRpc(port1, {
-          onDisposed: () => {
-            disposed1 = true;
-          },
-        });
-        const rpc2 = new MRpc(port2, {
-          onDisposed: () => {
-            disposed2 = true;
-          },
-        });
-
-        rpc1.dispose();
-        rpc2.dispose();
-        assertEquals(disposed1, true);
-        assertEquals(disposed2, true);
-      });
-    });
   });
 
   await t.step("defineLocalFn() & callRemoteFn()", async (t) => {
