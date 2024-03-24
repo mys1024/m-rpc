@@ -6,13 +6,12 @@ import type {
   MRpcMsgPort,
   MRpcMsgRet,
   MRpcOptions,
-  MsgPortNormalizedPostMessageOptions,
   RemoteFn,
   RemoteFns,
   RemoteRet,
 } from "./types.ts";
 import { isMRpcMsgCall, isMRpcMsgRet } from "./utils.ts";
-import { onMsg, sendMsg } from "./port.ts";
+import { onMsg, sendMsg } from "./ports.ts";
 
 /* -------------------------------------------------- types -------------------------------------------------- */
 
@@ -55,7 +54,6 @@ export class MRpc {
   #onDisposedCallbacks = new Set<() => void>();
   #callAcc = 0; // call accumulator
   #disposed = false;
-  #sendMsgOptions?: MsgPortNormalizedPostMessageOptions;
 
   get namespace(): string {
     return this.#namespace;
@@ -74,7 +72,6 @@ export class MRpc {
       timeout = 3000,
       retry = 0,
       onDisposed,
-      targetOrigin,
     } = options;
 
     // init properties
@@ -82,7 +79,6 @@ export class MRpc {
     this.#namespace = namespace;
     this.#timeout = timeout;
     this.#retry = retry;
-    this.#sendMsgOptions = targetOrigin ? { targetOrigin } : undefined;
     if (onDisposed) {
       this.onDisposed(onDisposed);
     }
@@ -263,7 +259,7 @@ export class MRpc {
       name,
       args,
     };
-    sendMsg(this.#port, msg, this.#sendMsgOptions);
+    sendMsg(this.#port, msg);
   }
 
   #sendReturnMsg(
@@ -282,7 +278,7 @@ export class MRpc {
       ret,
       err: err as any,
     };
-    sendMsg(this.#port, msg, this.#sendMsgOptions);
+    sendMsg(this.#port, msg);
   }
 
   #ensureInternalMRpc() {

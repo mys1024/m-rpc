@@ -1,4 +1,4 @@
-import { MsgPortNormalized } from "../src/types.ts";
+import { MRpcMsgPortCommon } from "../src/main.ts";
 import { startCommonTests } from "./ports.common.test.ts";
 
 Deno.test("MessagePort", async (t) => {
@@ -85,47 +85,39 @@ Deno.test("Worker", async (t) => {
   });
 });
 
-Deno.test("MsgPortNormalized", async (t) => {
+Deno.test("MRpcMsgPortCommon", async (t) => {
   await startCommonTests({
     t,
     usingPorts: async (fn) => {
-      // deno-lint-ignore prefer-const
-      let port1: MsgPortNormalized & {
-        _listeners: Set<(event: MessageEvent) => void>;
-      };
-      // deno-lint-ignore prefer-const
-      let port2: MsgPortNormalized & {
-        _listeners: Set<(event: MessageEvent) => void>;
-      };
+      const listeners1 = new Set<(e: MessageEvent) => void>();
+      const listeners2 = new Set<(e: MessageEvent) => void>();
 
-      port1 = {
-        _listeners: new Set(),
+      const port1 = new MRpcMsgPortCommon({
         postMessage: (message: any) => {
-          port2._listeners.forEach((listener) =>
-            listener({ data: message } as MessageEvent)
+          listeners2.forEach((listener) =>
+            listener(new MessageEvent("message", { data: message }))
           );
         },
         addEventListener: (_type, listener) => {
-          port1._listeners.add(listener);
+          listeners1.add(listener);
         },
         removeEventListener: (_type, listener) => {
-          port1._listeners.delete(listener);
+          listeners1.delete(listener);
         },
-      };
-      port2 = {
-        _listeners: new Set(),
+      });
+      const port2 = new MRpcMsgPortCommon({
         postMessage: (message: any) => {
-          port1._listeners.forEach((listener) =>
-            listener({ data: message } as MessageEvent)
+          listeners1.forEach((listener) =>
+            listener(new MessageEvent("message", { data: message }))
           );
         },
         addEventListener: (_type, listener) => {
-          port2._listeners.add(listener);
+          listeners2.add(listener);
         },
         removeEventListener: (_type, listener) => {
-          port2._listeners.delete(listener);
+          listeners2.delete(listener);
         },
-      };
+      });
 
       await fn({ port1, port2 });
     },

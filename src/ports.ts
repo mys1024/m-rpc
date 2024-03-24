@@ -2,8 +2,6 @@ import {
   MRpcMsgCall,
   MRpcMsgPort,
   MRpcMsgRet,
-  MsgPortNormalized,
-  MsgPortNormalizedPostMessageOptions,
   WorkerGlobalScope,
 } from "./types.ts";
 
@@ -12,14 +10,13 @@ import {
 export function sendMsg(
   port: MRpcMsgPort,
   message: any,
-  options?: MsgPortNormalizedPostMessageOptions,
 ): void {
   if (isMessagePort(port) || isWorker(port) || isWorkerGlobalScope(port)) {
     port.postMessage(message);
   } else if (isWebSocket(port)) {
     port.send(JSON.stringify(message));
-  } else if (isMsgPortNormalized(port)) {
-    port.postMessage(JSON.stringify(message), options);
+  } else if (isMRpcMsgPortCommon(port)) {
+    port.postMessage(JSON.stringify(message));
   } else {
     throw new Error("Invalid port type.", { cause: port });
   }
@@ -38,13 +35,40 @@ export function onMsg(
     const _listener = (event: Event) => listener((event as MessageEvent).data);
     port.addEventListener("message", _listener);
     return { stop: () => port.removeEventListener("message", _listener) };
-  } else if (isWebSocket(port) || isMsgPortNormalized(port)) {
+  } else if (isWebSocket(port) || isMRpcMsgPortCommon(port)) {
     const _listener = (event: Event) =>
       listener(JSON.parse((event as MessageEvent).data));
     port.addEventListener("message", _listener);
     return { stop: () => port.removeEventListener("message", _listener) };
   } else {
     throw new Error("Invalid port type.", { cause: port });
+  }
+}
+
+/* -------------------------------------------------- MRpcMsgPortCommon -------------------------------------------------- */
+
+export class MRpcMsgPortCommon {
+  postMessage;
+  addEventListener;
+  removeEventListener;
+
+  constructor(options: {
+    postMessage: (
+      message: any,
+    ) => void;
+    addEventListener: (
+      type: "message",
+      listener: (event: MessageEvent) => void,
+    ) => void;
+    removeEventListener: (
+      type: "message",
+      listener: (event: MessageEvent) => void,
+    ) => void;
+  }) {
+    const { postMessage, addEventListener, removeEventListener } = options;
+    this.postMessage = postMessage;
+    this.addEventListener = addEventListener;
+    this.removeEventListener = removeEventListener;
   }
 }
 
@@ -69,8 +93,6 @@ function isWorkerGlobalScope(port: MRpcMsgPort): port is WorkerGlobalScope {
     "removeEventListener" in port;
 }
 
-function isMsgPortNormalized(port: MRpcMsgPort): port is MsgPortNormalized {
-  return "postMessage" in port &&
-    "addEventListener" in port &&
-    "removeEventListener" in port;
+function isMRpcMsgPortCommon(port: MRpcMsgPort): port is MRpcMsgPortCommon {
+  return port instanceof MRpcMsgPortCommon;
 }

@@ -1,3 +1,5 @@
+import { MRpcMsgPortCommon } from "./ports.ts";
+
 /* -------------------------------------------------- general -------------------------------------------------- */
 
 export type AnyFn = (...args: any[]) => any;
@@ -14,7 +16,7 @@ export type RemoteFns<FNS extends Record<string, AnyFn>> = {
   [P in keyof FNS]: RemoteFn<FNS[P]>;
 };
 
-/* -------------------------------------------------- MRpc -------------------------------------------------- */
+/* -------------------------------------------------- ports -------------------------------------------------- */
 
 interface MRpcMsgBase {
   ns: string;
@@ -48,34 +50,6 @@ export interface WorkerGlobalScope {
   removeEventListener: Worker["removeEventListener"];
 }
 
-export interface MsgPortNormalizedPostMessageOptions {
-  /**
-   * @see https://developer.mozilla.org/en-US/docs/Web/API/Window/postMessage#targetOrigin
-   */
-  targetOrigin?: string;
-
-  /**
-   * TODO.
-   * @see https://developer.mozilla.org/en-US/docs/Web/API/Worker/postMessage#transfer
-   */
-  transfer?: Transferable[];
-}
-
-export type MsgPortNormalized = {
-  postMessage: (
-    message: any,
-    options?: MsgPortNormalizedPostMessageOptions,
-  ) => void;
-  addEventListener: (
-    type: "message",
-    listener: (event: MessageEvent) => void,
-  ) => void;
-  removeEventListener: (
-    type: "message",
-    listener: (event: MessageEvent) => void,
-  ) => void;
-};
-
 /**
  * The message port for MRpc.
  */
@@ -84,7 +58,9 @@ export type MRpcMsgPort =
   | WebSocket
   | Worker
   | WorkerGlobalScope
-  | MsgPortNormalized;
+  | MRpcMsgPortCommon;
+
+/* -------------------------------------------------- MRpc -------------------------------------------------- */
 
 /**
  * The options for MRpc constructor.
@@ -112,12 +88,6 @@ export interface MRpcOptions {
    * The callback to be called when the MRpc instance is disposed.
    */
   onDisposed?: () => void;
-
-  /**
-   * Only available for {@link MsgPortNormalized.postMessage()}.
-   * @see https://developer.mozilla.org/en-US/docs/Web/API/Window/postMessage#targetOrigin
-   */
-  targetOrigin?: string;
 }
 
 /**
