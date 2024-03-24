@@ -6,6 +6,8 @@ Deno.test("MessagePort", async (t) => {
     t,
     usingPorts: async (fn) => {
       const { port1, port2 } = new MessageChannel();
+      port1.start();
+      port2.start();
       await fn({ port1, port2 });
       port1.close();
       port2.close();
@@ -76,6 +78,7 @@ Deno.test("Worker", async (t) => {
         };
         worker.addEventListener("message", initListener);
       });
+      workerGlobalProxy.start();
 
       await fn({ port1: worker, port2: workerGlobalProxy });
 

@@ -16,7 +16,7 @@ export type RemoteFns<FNS extends Record<string, AnyFn>> = {
   [P in keyof FNS]: RemoteFn<FNS[P]>;
 };
 
-/* -------------------------------------------------- ports -------------------------------------------------- */
+/* -------------------------------------------------- msg -------------------------------------------------- */
 
 interface MRpcMsgBase {
   ns: string;
@@ -40,6 +40,8 @@ export type MRpcMsgRet<FN extends AnyFn = AnyFn> =
     | { ok: true; ret: AwaitedRet<FN>; err?: undefined }
     | { ok: false; ret?: undefined; err: string }
   );
+
+/* -------------------------------------------------- ports -------------------------------------------------- */
 
 /**
  * @see https://developer.mozilla.org/en-US/docs/Web/API/WorkerGlobalScope

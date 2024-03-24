@@ -16,7 +16,7 @@ export function sendMsg(
   } else if (isWebSocket(port)) {
     port.send(JSON.stringify(message));
   } else if (isMRpcMsgPortCommon(port)) {
-    port.postMessage(JSON.stringify(message));
+    port.postMessage(port.serializer(message));
   } else {
     throw new Error("Invalid port type.", { cause: port });
   }
@@ -29,15 +29,16 @@ export function onMsg(
   stop: () => void;
 } {
   if (isMessagePort(port) || isWorker(port) || isWorkerGlobalScope(port)) {
-    if (isMessagePort(port)) {
-      port.start();
-    }
     const _listener = (event: Event) => listener((event as MessageEvent).data);
     port.addEventListener("message", _listener);
     return { stop: () => port.removeEventListener("message", _listener) };
-  } else if (isWebSocket(port) || isMRpcMsgPortCommon(port)) {
-    const _listener = (event: Event) =>
-      listener(JSON.parse((event as MessageEvent).data));
+  } else if (isWebSocket(port)) {
+    const _listener = (event: MessageEvent) => listener(JSON.parse(event.data));
+    port.addEventListener("message", _listener);
+    return { stop: () => port.removeEventListener("message", _listener) };
+  } else if (isMRpcMsgPortCommon(port)) {
+    const _listener = (event: MessageEvent) =>
+      listener(port.deserializer(event.data));
     port.addEventListener("message", _listener);
     return { stop: () => port.removeEventListener("message", _listener) };
   } else {
@@ -52,6 +53,9 @@ export class MRpcMsgPortCommon {
   addEventListener;
   removeEventListener;
 
+  #serializer;
+  #deserializer;
+
   constructor(options: {
     postMessage: (
       message: any,
@@ -64,11 +68,43 @@ export class MRpcMsgPortCommon {
       type: "message",
       listener: (event: MessageEvent) => void,
     ) => void;
+    /**
+     * @default "json"
+     */
+    serializer?: "json" | "as-is" | ((data: any) => any);
+    /**
+     * @default "json"
+     */
+    deserializer?: "json" | "as-is" | ((data: any) => any);
   }) {
-    const { postMessage, addEventListener, removeEventListener } = options;
+    const {
+      postMessage,
+      addEventListener,
+      removeEventListener,
+      serializer = "json",
+      deserializer = "json",
+    } = options;
     this.postMessage = postMessage;
     this.addEventListener = addEventListener;
     this.removeEventListener = removeEventListener;
+    this.#serializer = serializer === "json"
+      ? (data: any) => JSON.stringify(data)
+      : serializer === "as-is"
+      ? (data: any) => data
+      : serializer;
+    this.#deserializer = deserializer === "json"
+      ? (data: any) => JSON.parse(data)
+      : deserializer === "as-is"
+      ? (data: any) => data
+      : deserializer;
+  }
+
+  get serializer() {
+    return this.#serializer;
+  }
+
+  get deserializer() {
+    return this.#deserializer;
   }
 }
 
@@ -87,7 +123,7 @@ function isWorker(port: MRpcMsgPort): port is Worker {
 }
 
 function isWorkerGlobalScope(port: MRpcMsgPort): port is WorkerGlobalScope {
-  return port as any === globalThis &&
+  return port as unknown === globalThis &&
     "postMessage" in port &&
     "addEventListener" in port &&
     "removeEventListener" in port;

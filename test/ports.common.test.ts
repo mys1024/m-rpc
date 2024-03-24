@@ -140,7 +140,7 @@ export async function startCommonTests(options: {
         rpc1.defineLocalFns(fns);
         const remoteFns = rpc2.useRemoteFns<Fns>();
         try {
-          remoteFns[Symbol("add") as any as "add"];
+          remoteFns[Symbol("add") as unknown as "add"];
         } catch (err) {
           assertIsError(err, undefined, "The name is not a string.");
         }
