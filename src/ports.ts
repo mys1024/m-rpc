@@ -5,7 +5,7 @@ import {
   WorkerGlobalScope,
 } from "./types.ts";
 
-/* -------------------------------------------------- exports -------------------------------------------------- */
+/* -------------------------------------------------- MRpcMsgPort -------------------------------------------------- */
 
 export function sendMsg(
   port: MRpcMsgPort,
@@ -49,10 +49,9 @@ export function onMsg(
 /* -------------------------------------------------- MRpcMsgPortCommon -------------------------------------------------- */
 
 export class MRpcMsgPortCommon {
-  postMessage;
-  addEventListener;
-  removeEventListener;
-
+  #postMessage;
+  #addEventListener;
+  #removeEventListener;
   #serializer;
   #deserializer;
 
@@ -84,9 +83,9 @@ export class MRpcMsgPortCommon {
       serializer = "json",
       deserializer = "json",
     } = options;
-    this.postMessage = postMessage;
-    this.addEventListener = addEventListener;
-    this.removeEventListener = removeEventListener;
+    this.#postMessage = postMessage;
+    this.#addEventListener = addEventListener;
+    this.#removeEventListener = removeEventListener;
     this.#serializer = serializer === "json"
       ? (data: any) => JSON.stringify(data)
       : serializer === "as-is"
@@ -99,11 +98,29 @@ export class MRpcMsgPortCommon {
       : deserializer;
   }
 
-  get serializer() {
+  get postMessage(): (message: any) => void {
+    return this.#postMessage;
+  }
+
+  get addEventListener(): (
+    type: "message",
+    listener: (event: MessageEvent) => void,
+  ) => void {
+    return this.#addEventListener;
+  }
+
+  get removeEventListener(): (
+    type: "message",
+    listener: (event: MessageEvent) => void,
+  ) => void {
+    return this.#removeEventListener;
+  }
+
+  get serializer(): (data: any) => any {
     return this.#serializer;
   }
 
-  get deserializer() {
+  get deserializer(): (data: any) => any {
     return this.#deserializer;
   }
 }
