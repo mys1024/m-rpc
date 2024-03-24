@@ -28,8 +28,7 @@ function add(a: number, b: number) {
   return a + b;
 }
 
-// The port can be a MessagePort, a WebSocket, a Worker, a WorkerGlobalScope,
-// or an object containing methods for sending and receiving messages.
+// The port can be a MessagePort, a WebSocket, a Worker, or a WorkerGlobalScope
 const { port1, port2 } = new MessageChannel();
 const rpc1 = new MRpc(port1);
 const rpc2 = new MRpc(port2);
